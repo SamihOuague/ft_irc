@@ -1,0 +1,29 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   Server.hpp                                      :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: souaguen <souaguen@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/12 13:37:50 by souaguen          #+#    #+#             */
+/*   Updated: 2025/12/12 13:37:53 by souaguen         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#ifndef SERVER_HPP
+# define SERVER_HPP
+# include <sys/socket.h>
+# include <arpa/inet.h>
+
+class	Server
+{
+	private:
+		int	sockfd;
+		sockaddr_in	addr;
+	public:
+		Server();
+		Server(Server const &);
+		Server &	operator=(Server const &);
+		~Server();
+};
+#endif
