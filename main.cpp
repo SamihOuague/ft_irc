@@ -10,17 +10,14 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <sys/socket.h>
-#include <fstream>
-#include <unistd.h>
-#include <iostream>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <cstring>
+#include "src/Server.hpp"
 
 int     main(void)
 {
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    Server server;
+
+    server.start(6667);
+    /* int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     int clientfd;
     socklen_t socklen;
     sockaddr_in caddr;
@@ -80,6 +77,6 @@ int     main(void)
         send(clientfd, buf, n, 0);
     }
     close(sockfd);
-    close(clientfd);
+    close(clientfd);*/
     return (0);
 }

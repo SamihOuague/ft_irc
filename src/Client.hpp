@@ -12,9 +12,14 @@
 
 #ifndef CLIENT_HPP
 # define CLIENT_HPP
+# include <sys/socket.h>
+# include <arpa/inet.h>
 
 class	Client
 {
+	private:
+		int	fd;
+		sockaddr_in	addr;
 	public:
 		Client();
 		Client(Client const &);

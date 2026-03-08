@@ -25,5 +25,7 @@ class	Server
 		Server(Server const &);
 		Server &	operator=(Server const &);
 		~Server();
+		void	start(int const);
+		void	readData(int const);
 };
 #endif
