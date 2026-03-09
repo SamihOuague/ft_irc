@@ -14,12 +14,15 @@
 # define SERVER_HPP
 # include <sys/socket.h>
 # include <arpa/inet.h>
+# include <map>
+# include "Client.hpp"
 
 class	Server
 {
 	private:
 		int	sockfd;
 		sockaddr_in	addr;
+		std::map<int, Client> clients;
 	public:
 		Server();
 		Server(Server const &);

@@ -14,10 +14,11 @@
 #include <iostream>
 #include <sys/epoll.h>
 #include <unistd.h>
+#include <cstring>
 
 Server::Server(void)
 {
-	int	opt = 1;
+	int opt = 1;
 	std::cout << "Server: Default constructor called." << std::endl;
 
 	(*this).sockfd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
@@ -27,18 +28,18 @@ Server::Server(void)
 	(*this).addr.sin_addr.s_addr = INADDR_ANY;
 	(*this).addr.sin_family = AF_INET;
 	(*this).addr.sin_port = htons(6667);
-	return ;
+	return;
 }
 
 Server::Server(Server const &instance)
 {
 	std::cout << "Server: Copy constructor called." << std::endl;
 	*this = instance;
-	return ;
+	return;
 }
 
-Server&	Server::operator=(Server const &instance)
-{	
+Server &Server::operator=(Server const &instance)
+{
 	std::cout << "Server: Assignation overload called." << std::endl;
 	if (this == &instance)
 		return (*this);
@@ -46,46 +47,45 @@ Server&	Server::operator=(Server const &instance)
 }
 
 Server::~Server(void)
-{	
+{
 	std::cout << "Server: Destructor called." << std::endl;
-	return ;
+	return;
 }
 
-void	Server::start(int const port)
+void Server::start(int const port)
 {
-	(*this).addr.sin_port        = htons(port);
+	Client	client;
+	(*this).addr.sin_port = htons(port);
 
 	if (bind((*this).sockfd, (struct sockaddr *)&(*this).addr, sizeof((*this).addr)) == -1)
 	{
 		std::cerr << "Error binding" << std::endl;
-		return ;
+		return;
 	}
 	std::cout << "Bind success" << std::endl;
 
 	if (listen((*this).sockfd, 10) == -1)
 	{
 		std::cerr << "Error listen" << std::endl;
-		return ;
+		return;
 	}
 	std::cout << "Server listening on port " << port << std::endl;
-	struct	epoll_event ev, events[10];
-	int listen_sock, conn_sock, nfds, epollfd, socklen;
-	struct	sockaddr_in client_addr;
+	struct epoll_event ev, events[10];
+	int listen_sock, conn_sock, nfds, epollfd;
 
-	socklen = sizeof(client_addr);
 	listen_sock = (*this).sockfd;
 	epollfd = epoll_create1(0);
 	if (epollfd == -1)
 	{
 		std::cerr << "Error creating epoll" << std::endl;
-		return ;
+		return;
 	}
 	ev.events = EPOLLIN;
 	ev.data.fd = listen_sock;
 	if (epoll_ctl(epollfd, EPOLL_CTL_ADD, listen_sock, &ev) == -1)
 	{
 		std::cerr << "Error epoll_ctl" << std::endl;
-		return ;
+		return;
 	}
 	for (;;)
 	{
@@ -93,38 +93,27 @@ void	Server::start(int const port)
 		if (nfds == -1)
 		{
 			std::cerr << "Error epoll_wait" << std::endl;
-			return ;
+			return;
 		}
 		for (int n = 0; n < nfds; n++)
 		{
 			if (events[n].data.fd == listen_sock)
 			{
-				conn_sock = accept(listen_sock, (struct sockaddr *)&client_addr, (socklen_t *)&socklen);
-				if (conn_sock == -1)
-				{
-					std::cerr << "Error accept" << std::endl;
-					return ;
-				}
+				conn_sock = client.acceptConnection(listen_sock);
+				(*this).clients[conn_sock] = client;
 				ev.events = EPOLLIN | EPOLLET;
 				ev.data.fd = conn_sock;
 				if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock, &ev) == -1)
 				{
 					std::cerr << "Error epoll_ctl" << std::endl;
-					return ;
+					return;
 				}
+				std::cout << "Client connected" << std::endl;
+				send(conn_sock, "CAP * LS :JOIN\r\n", strlen("CAP * LS :JOIN\r\n"), 0);
+				
 			}
 			else
-				(*this).readData(events[n].data.fd);
+				(*this).clients[events[n].data.fd].readCmd();
 		}
-	}
-}
-
-void	Server::readData(int const conn_sock)
-{
-	for (char buf = '\0'; read(conn_sock, &buf, 1) > 0; )
-	{
-		std::cout << buf;
-		if (buf == '\n')
-			break ;
 	}
 }
