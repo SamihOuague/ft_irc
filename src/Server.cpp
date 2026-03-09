@@ -46,6 +46,116 @@ Server &Server::operator=(Server const &instance)
 	return (*this);
 }
 
+std::vector<std::string> extract_cmd(std::string req)
+{
+	std::vector<std::string> argv;
+	std::string cursor(req);
+	long unsigned int bnpos = -1;
+
+	for (long unsigned int spos = cursor.find(' '); ; spos = cursor.find(' '))
+	{
+		bnpos = cursor.find('\r');
+		argv.push_back(cursor.substr(0, (cursor.find(' ') == std::string::npos || cursor[0] == ':') ? bnpos : spos));
+		if (cursor.find(' ') == std::string::npos || cursor[0] == ':')
+			break;
+		cursor = cursor.substr(spos + 1);
+	}
+	return argv;
+}
+
+void	Server::forwardMsg(Client *client, std::vector<Client *> clients, std::string &msg)
+{
+	
+	std::cout << msg << std::endl;
+	for (int i = 0; i < (int)clients.size(); i++)
+	{
+		if (clients[i] != client)
+			send((*clients[i]).getFd(), msg.c_str(), msg.size(), 0);
+	}
+}
+
+void	Server::execCmd(Client *client, std::vector<std::string> argv)
+{
+	std::string msg;
+	std::string nick;
+
+	if (argv[0] == "NICK")
+	{
+		if (argv.size() != 2)
+			return;
+
+		nick = argv[1];
+		msg = ":localhost 001 " + nick + " :Welcome to the server " + nick + ".\r\n";
+		(*client).setNick(nick);
+		send((*client).getFd(), msg.c_str(), msg.size(), 0);
+	}
+	else if (argv[0] == "JOIN")
+	{
+		if (argv.size() != 2 || argv[1] == ":")
+			return ;
+		(*this).channels[argv[1]].push_back(client);
+		msg = ":" + (*client).getNick() + "!" + (*client).getNick() + "@localhost JOIN :" + argv[1] + "\r\n";
+		forwardMsg(client, (*this).channels[argv[1]], msg);
+		nick = "";
+		for (int i = 0; i < (int)(*this).channels[argv[1]].size(); i++)
+			nick += " " + (*(*this).channels[argv[1]][i]).getNick();
+		msg += ":server 353 " + (*client).getNick() + " = " + argv[1] + " :" + nick + "\r\n";
+		msg += ":server 366 " + (*client).getNick() + " " + argv[1] + " :End of /NAMES list\r\n";
+		send((*client).getFd(), msg.c_str(), msg.size(), 0);
+	}
+	else if (argv[0] == "PRIVMSG")
+	{
+		if (argv.size() != 3)
+			return ;
+		msg = ":" + (*client).getNick() + "!" + (*client).getNick() + "@localhost PRIVMSG " + argv[1] + " " + argv[2] + "\r\n";
+		(*this).forwardMsg(client, (*this).channels[argv[1]], msg);
+	}
+	else
+	{
+		//for (int i = 0; i < (int)argv.size(); i++)
+		//	std::cout << argv[i] << " ";
+		//std::cout << std::endl;
+	}
+}
+
+void Server::execReq(Client *client)
+{
+	std::string cursor("");
+	std::string cmd("");
+	long unsigned int bnpos = -1;
+	std::vector<std::string> argv;
+
+	cursor = (*this).readCmd((*client).getFd());
+	while (cursor.find('\n') != std::string::npos)
+	{
+		bnpos = cursor.find('\n');
+		cmd = cursor.substr(0, bnpos);
+		cursor = cursor.substr(bnpos + 1);
+		argv = extract_cmd(cmd);
+		(*this).execCmd(client, argv);
+	}
+}
+
+std::string	Server::readCmd(int const conn_sock)
+{
+	char buffer[512];
+	std::string msg("");
+
+	while (true)
+	{
+		int bytes = recv(conn_sock, buffer, 511, 0);
+
+		if (bytes <= 0)
+			break;
+		buffer[bytes] = '\0';
+		msg = msg + std::string(buffer);
+		if (buffer[bytes - 1] == '\n' && buffer[bytes - 2] == '\r')
+			break;
+	}
+	return msg;
+}
+
+
 Server::~Server(void)
 {
 	std::cout << "Server: Destructor called." << std::endl;
@@ -55,6 +165,7 @@ Server::~Server(void)
 void Server::start(int const port)
 {
 	Client	client;
+
 	(*this).addr.sin_port = htons(port);
 
 	if (bind((*this).sockfd, (struct sockaddr *)&(*this).addr, sizeof((*this).addr)) == -1)
@@ -113,7 +224,9 @@ void Server::start(int const port)
 				
 			}
 			else
-				(*this).clients[events[n].data.fd].readCmd();
+			{
+				(*this).execReq(&(*this).clients[events[n].data.fd]);
+			}
 		}
 	}
 }

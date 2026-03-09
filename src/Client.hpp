@@ -15,6 +15,7 @@
 # include <sys/socket.h>
 # include <arpa/inet.h>
 # include <string>
+# include <vector>
 
 class	Client
 {
@@ -22,7 +23,7 @@ class	Client
 		int	fd;
 		int	socklen;
 		sockaddr_in	addr;
-		std::string username;
+		std::string nick;
 
 	public:
 		Client();
@@ -30,7 +31,8 @@ class	Client
 		Client &	operator=(Client const &);
 		int		acceptConnection(int const &);
 		int		getFd(void) const;
-		void	readCmd(void);
+		std::string	getNick(void) const;
+		void	setNick(std::string const &);
 		~Client();
 };
 #endif

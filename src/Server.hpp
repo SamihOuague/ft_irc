@@ -15,6 +15,7 @@
 # include <sys/socket.h>
 # include <arpa/inet.h>
 # include <map>
+# include <vector>
 # include "Client.hpp"
 
 class	Server
@@ -23,12 +24,17 @@ class	Server
 		int	sockfd;
 		sockaddr_in	addr;
 		std::map<int, Client> clients;
+		std::map<std::string, std::vector<Client *>> channels;
+
 	public:
 		Server();
 		Server(Server const &);
 		Server &	operator=(Server const &);
 		~Server();
 		void	start(int const);
-		void	readData(int const);
+		std::string	readCmd(int const);
+		void	execCmd(Client *, std::vector<std::string>);
+		void	execReq(Client *);
+		void	forwardMsg(Client *, std::vector<Client *>, std::string &);
 };
 #endif
