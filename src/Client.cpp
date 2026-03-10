@@ -14,7 +14,7 @@
 #include <iostream>
 #include <vector>
 
-Client::Client(void)
+Client::Client(void): isNew(true)
 {
 	//std::cout << "Client: Default constructor called." << std::endl;
 	return;
@@ -32,6 +32,17 @@ int Client::getFd(void) const
 	return (*this).fd;
 }
 
+bool	Client::getIsNew(void) const
+{
+	return (*this).isNew;
+}
+
+void	Client::setIsNew(bool value)
+{
+	(*this).isNew = value;
+	return ;
+}
+
 Client &Client::operator=(Client const &instance)
 {
 	//std::cout << "Client: Assignation overload called." << std::endl;
@@ -41,6 +52,7 @@ Client &Client::operator=(Client const &instance)
 	(*this).addr = instance.addr;
 	(*this).socklen = instance.socklen;
 	(*this).nick = instance.nick;
+	(*this).isNew = instance.isNew;
 	return (*this);
 }
 

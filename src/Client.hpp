@@ -24,6 +24,7 @@ class	Client
 		int	socklen;
 		sockaddr_in	addr;
 		std::string nick;
+		bool	isNew;
 
 	public:
 		Client();
@@ -33,6 +34,8 @@ class	Client
 		int		getFd(void) const;
 		std::string	getNick(void) const;
 		void	setNick(std::string const &);
+		bool	getIsNew(void) const;
+		void	setIsNew(bool);
 		~Client();
 };
 #endif

@@ -52,6 +52,12 @@ std::vector<std::string> extract_cmd(std::string req)
 	std::string cursor(req);
 	long unsigned int bnpos = -1;
 
+	//std::cout << "REQ => "<< req << std::endl;
+	if (req[0] == ':')
+	{
+		cursor = req.substr(1);
+		//std::cout << "ZBEUB" << req << std::endl;
+	}
 	for (long unsigned int spos = cursor.find(' '); ; spos = cursor.find(' '))
 	{
 		bnpos = cursor.find('\r');
@@ -85,7 +91,14 @@ void	Server::execCmd(Client *client, std::vector<std::string> argv)
 			return;
 
 		nick = argv[1];
-		msg = ":localhost 001 " + nick + " :Welcome to the server " + nick + ".\r\n";
+		if ((*client).getIsNew())
+		{
+			msg = ":localhost 001 " + nick + " :Welcome to the server " + nick + ".\r\n";
+			(*client).setIsNew(false);
+		}
+		else
+			msg = ":" + (*client).getNick() + "!" + (*client).getNick() + "@localhost NICK :" + nick + "\r\n";
+		std::cout << msg << std::endl;
 		(*client).setNick(nick);
 		send((*client).getFd(), msg.c_str(), msg.size(), 0);
 	}
@@ -108,7 +121,22 @@ void	Server::execCmd(Client *client, std::vector<std::string> argv)
 		if (argv.size() != 3)
 			return ;
 		msg = ":" + (*client).getNick() + "!" + (*client).getNick() + "@localhost PRIVMSG " + argv[1] + " " + argv[2] + "\r\n";
-		(*this).forwardMsg(client, (*this).channels[argv[1]], msg);
+		std::cout << msg << std::endl;
+		if (argv[1][0] == '#')
+			(*this).forwardMsg(client, (*this).channels[argv[1]], msg);
+		else
+		{
+			std::map<int, Client>::iterator it = (*this).clients.begin();
+			for (int i = 0; i < (int)(*this).clients.size(); i++)
+			{
+				if ((*it).second.getNick() == argv[1])
+				{
+					send((*it).second.getFd(), msg.c_str(), msg.size(), 0);
+					break ;
+				}
+				it++;
+			}
+		}
 	}
 	else
 	{
@@ -219,8 +247,9 @@ void Server::start(int const port)
 					std::cerr << "Error epoll_ctl" << std::endl;
 					return;
 				}
+				std::string msg = "CAP * LS :JOIN NICK\r\n";
 				std::cout << "Client connected" << std::endl;
-				send(conn_sock, "CAP * LS :JOIN\r\n", strlen("CAP * LS :JOIN\r\n"), 0);
+				send(conn_sock, msg.c_str(), msg.size(), 0);
 				
 			}
 			else
