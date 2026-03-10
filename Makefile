@@ -2,7 +2,8 @@ CXX=c++
 CPPFLAGS=-g -Wall -Werror -Wextra
 SRC=main.cpp \
 	src/Server.cpp \
-	src/Client.cpp
+	src/Client.cpp \
+	src/Channel.cpp
 OBJ=$(SRC:.cpp=.o)
 NAME=ft_irc
 

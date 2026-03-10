@@ -106,12 +106,12 @@ void	Server::execCmd(Client *client, std::vector<std::string> argv)
 	{
 		if (argv.size() != 2 || argv[1] == ":")
 			return ;
-		(*this).channels[argv[1]].push_back(client);
+		(*this).channels[argv[1]].addClient(client);
 		msg = ":" + (*client).getNick() + "!" + (*client).getNick() + "@localhost JOIN :" + argv[1] + "\r\n";
-		forwardMsg(client, (*this).channels[argv[1]], msg);
+		forwardMsg(client, (*this).channels[argv[1]].getClients(), msg);
 		nick = "";
-		for (int i = 0; i < (int)(*this).channels[argv[1]].size(); i++)
-			nick += " " + (*(*this).channels[argv[1]][i]).getNick();
+		for (int i = 0; i < (int)(*this).channels[argv[1]].getClients().size(); i++)
+			nick += " " + (*(*this).channels[argv[1]].getClients()[i]).getNick();
 		msg += ":server 353 " + (*client).getNick() + " = " + argv[1] + " :" + nick + "\r\n";
 		msg += ":server 366 " + (*client).getNick() + " " + argv[1] + " :End of /NAMES list\r\n";
 		send((*client).getFd(), msg.c_str(), msg.size(), 0);
@@ -123,7 +123,7 @@ void	Server::execCmd(Client *client, std::vector<std::string> argv)
 		msg = ":" + (*client).getNick() + "!" + (*client).getNick() + "@localhost PRIVMSG " + argv[1] + " " + argv[2] + "\r\n";
 		std::cout << msg << std::endl;
 		if (argv[1][0] == '#')
-			(*this).forwardMsg(client, (*this).channels[argv[1]], msg);
+			(*this).forwardMsg(client, (*this).channels[argv[1]].getClients(), msg);
 		else
 		{
 			std::map<int, Client>::iterator it = (*this).clients.begin();

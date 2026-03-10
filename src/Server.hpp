@@ -17,6 +17,7 @@
 # include <map>
 # include <vector>
 # include "Client.hpp"
+# include "Channel.hpp"
 
 class	Server
 {
@@ -24,7 +25,7 @@ class	Server
 		int	sockfd;
 		sockaddr_in	addr;
 		std::map<int, Client> clients;
-		std::map<std::string, std::vector<Client *>> channels;
+		std::map<std::string, Channel> channels;
 
 	public:
 		Server();
