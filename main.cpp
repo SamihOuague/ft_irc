@@ -14,8 +14,8 @@
 
 int     main(void)
 {
-    Server server;
+    Server server(6868, "pass");
 
-    server.start(6667);
+    server.start();
     return (0);
 }

@@ -23,19 +23,26 @@ class	Server
 {
 	private:
 		int	sockfd;
+		int	epollfd;
 		sockaddr_in	addr;
+		std::string	password;
 		std::map<int, Client> clients;
 		std::map<std::string, Channel> channels;
 
 	public:
-		Server();
+        Server(void);
+		Server(unsigned short, std::string);
 		Server(Server const &);
 		Server &	operator=(Server const &);
 		~Server();
-		void	start(int const);
+		void	start();
 		std::string	readCmd(int const);
 		void	execCmd(Client *, std::vector<std::string>);
 		void	execReq(Client *);
-		void	forwardMsg(Client *, std::vector<Client *>, std::string &);
+		int		init();
+		int		initPoll();
+		int		newClient();
+		Client	*	getClient(std::string &);
+		void	removeClient(Client *client);
 };
 #endif

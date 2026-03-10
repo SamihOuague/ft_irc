@@ -40,6 +40,46 @@ void Channel::addClient(Client *client)
     (*this).clients.push_back(client);
 }
 
+void	Channel::removeClient(Client *client, std::string msg)
+{
+	std::vector<Client *>::iterator it = (*this).clients.begin();
+	std::string	msgi;
+	
+	msgi = ":" + (*client).getNick() + "!" + (*client).getNick() + "@localhost " + msg + "\r\n";
+	for (int i = 0; i < (int)(*this).clients.size(); i++)
+	{
+		if (*it == client)
+		{
+			if (msg.size() > 0)
+				(*this).forwardMsg(NULL, msgi); 
+			(*this).clients.erase(it, it+1);
+			break ;
+		}
+		it++;
+	}
+}
+
+Client	*Channel::getClient(std::string nick) const
+{
+	for (int i = 0; i < (int)(*this).clients.size(); i++)
+	{
+		if ((*(*this).clients[i]).getNick() == nick)
+			return (*this).clients[i];
+	}
+	return (NULL);
+}
+
+void Channel::forwardMsg(Client *client, std::string &msg)
+{
+	if (client != NULL && (*this).getClient((*client).getNick()) == NULL)
+		return ;
+	for (int i = 0; i < (int)clients.size(); i++)
+	{
+		if ((*this).clients[i] != client)
+			(*clients[i]).sendMsg(msg);
+	}
+}
+
 std::vector<Client *>   Channel::getClients() const
 {
     return (*this).clients;

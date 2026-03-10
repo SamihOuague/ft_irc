@@ -28,8 +28,10 @@ class	Channel
 		Channel(Channel const &);
 		Channel &	operator=(Channel const &);
         void addClient(Client *client);
-        void removeClient(Client *client);
+        void removeClient(Client *client, std::string msg);
         std::vector<Client *> getClients() const;
+		void	forwardMsg(Client *client, std::string &msg);
+		Client	*getClient(std::string) const;
 		~Channel();
 };
 #endif

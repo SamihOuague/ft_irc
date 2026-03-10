@@ -16,15 +16,16 @@
 # include <arpa/inet.h>
 # include <string>
 # include <vector>
+#include <sys/epoll.h>
 
 class	Client
 {
 	private:
 		int	fd;
-		int	socklen;
 		sockaddr_in	addr;
 		std::string nick;
 		bool	isNew;
+		bool	isAuth;
 
 	public:
 		Client();
@@ -36,6 +37,10 @@ class	Client
 		void	setNick(std::string const &);
 		bool	getIsNew(void) const;
 		void	setIsNew(bool);
+		void	sendMsg(std::string const);
+		void	disconnect(int &);
+		bool	getIsAuth() const;
+		void	setIsAuth(bool);
 		~Client();
 };
 #endif
