@@ -16,13 +16,15 @@
 #include <unistd.h>
 #include <cstring>
 
-Server::Server()
+bool	Server::isRunning = false;
+
+Server::Server(): Server(6667, "password")
 {
 	std::cout << "Server: Default constructor called." << std::endl;
 	return;
 }
 
-Server::Server(unsigned short port, std::string password) : password(password)
+Server::Server(unsigned short port, std::string password): password(password)
 {
 	int opt = 1;
 	std::cout << "Server: Default constructor called." << std::endl;
@@ -40,7 +42,7 @@ Server::Server(unsigned short port, std::string password) : password(password)
 	return;
 }
 
-Server::Server(Server const &instance)
+Server::Server(Server const &instance): Routes()
 {
 	std::cout << "Server: Copy constructor called." << std::endl;
 	*this = instance;
@@ -152,7 +154,7 @@ int Server::newClient()
 		std::cerr << "Error epoll_ctl" << std::endl;
 		return -1;
 	}
-	std::string msg = "CAP * LS :JOIN NICK\r\n";
+	std::string msg = "CAP * LS :NICK PASS JOIN PRIVMSG KICK QUIT PART\r\n";
 	std::cout << "Client connected" << std::endl;
 	send(conn_sock, msg.c_str(), msg.size(), 0);
 	return (0);
@@ -167,11 +169,14 @@ void Server::start()
 		return;
 	if ((*this).initPoll() == -1)
 		return;
-	for (;;)
+	Server::isRunning = true;
+	while (Server::isRunning)
 	{
 		nfds = epoll_wait((*this).epollfd, events, 10, -1);
 		if (nfds == -1)
 		{
+			if (errno == EINTR)
+        		continue;
 			std::cerr << "Error epoll_wait" << std::endl;
 			return;
 		}
@@ -186,6 +191,15 @@ void Server::start()
 				(*this).execReq(&(*this).clients[events[n].data.fd]);
 		}
 	}
+	
+	std::map<int, Client>::iterator it = (*this).clients.begin();
+	for (int i = 0; i < (int)(*this).clients.size(); i++)
+	{
+		(*it).second.disconnect((*this).epollfd);
+		it++;
+	}
+	close((*this).sockfd);
+	close((*this).epollfd);
 }
 
 // PARSING PART
@@ -216,99 +230,8 @@ void Server::execCmd(Client *client, std::vector<std::string> argv)
 	std::string nick;
 	if (argv.size() < 1)
 		return;
-	if (argv[0] == "NICK")
-	{
-		if (argv.size() != 2 || !(*client).getIsAuth())
-			return;
-
-		nick = argv[1];
-		if ((*this).getClient(nick) != NULL)
-		{
-			msg = ":localhost 433 * " + nick + " :Nickname is already in use\r\n";
-			(*client).sendMsg(msg);
-			return ;
-		}
-		if ((*client).getIsNew())
-		{
-			msg = ":localhost 001 " + nick + " :Welcome to the server " + nick + ".\r\n";
-			(*client).setIsNew(false);
-		}
-		else
-			msg = ":" + (*client).getNick() + "!" + (*client).getNick() + "@localhost NICK :" + nick + "\r\n";
-		(*client).setNick(nick);
-		(*client).sendMsg(msg);
-	}
-	else if (argv[0] == "PASS")
-	{
-		if (argv[1] != (*this).password)
-		{
-			std::cout << (*client).getNick() << std::endl;
-			msg = ":localhost 464 * :Incorrect Password\r\n";
-			(*client).sendMsg(msg);
-			(*client).disconnect((*this).epollfd);
-			(*this).removeClient(client);
-			return ;
-		}
-		(*client).setIsAuth(true);
-	}
-	else if (argv[0] == "JOIN")
-	{
-		if (argv.size() != 2 || argv[1] == ":")
-			return;
-		(*this).channels[argv[1]].addClient(client);
-		msg = ":" + (*client).getNick() + "!" + (*client).getNick() + "@localhost JOIN :" + argv[1] + "\r\n";
-		(*this).channels[argv[1]].forwardMsg(client, msg);
-		nick = "";
-		for (int i = 0; i < (int)(*this).channels[argv[1]].getClients().size(); i++)
-			nick += " " + (*(*this).channels[argv[1]].getClients()[i]).getNick();
-		msg += ":server 353 " + (*client).getNick() + " = " + argv[1] + " :" + nick + "\r\n";
-		msg += ":server 366 " + (*client).getNick() + " " + argv[1] + " :End of /NAMES list\r\n";
-		
-		(*client).sendMsg(msg);
-	}
-	else if (argv[0] == "PRIVMSG")
-	{
-		if (argv.size() != 3)
-			return;
-		msg = ":" + (*client).getNick() + "!" + (*client).getNick() + "@localhost PRIVMSG " + argv[1] + " " + argv[2] + "\r\n";
-		if (argv[1][0] == '#')
-			(*this).channels[argv[1]].forwardMsg(client, msg);
-		else
-		{
-			if ((*this).getClient(argv[1]))
-				(*(*this).getClient(argv[1])).sendMsg(msg);
-		}
-	}
-	else if (argv[0] == "KICK")
-	{
-		if (argv.size() != 4)
-			return;
-		msg = ":" + (*client).getNick() + "!" + (*client).getNick() + "@localhost KICK " + argv[1] + " " + argv[2] + " " + argv[3] + "\r\n";
-		for (int i = 0; i < (int)(*this).channels[argv[1]].getClients().size(); i++)
-		{
-			if ((*(*this).channels[argv[1]].getClients()[i]).getNick() == argv[2])
-			{
-				(*this).channels[argv[1]].forwardMsg(client, msg);
-				(*client).sendMsg(msg);
-				(*this).channels[argv[1]].removeClient((*this).channels[argv[1]].getClients()[i], "");
-				break;
-			}
-		}
-	}
-	else if (argv[0] == "QUIT")
-	{
-		(*client).disconnect((*this).epollfd);
-		(*this).removeClient(client);
-	}
-	else if (argv[0] == "PART")
-	{
-		if (argv.size() < 2)
-			return ;
-		msg = "PART " + argv[1];
-		if (argv.size() > 2)
-			msg += " " + argv[2];
-		(*this).channels[argv[1]].removeClient(client, msg);
-	}
+	if ((*this).routes.count(argv[0]))
+		(*this).routes[argv[0]](this, client, argv);
 	else
 	{
 		for (int i = 0; i < (int)argv.size(); i++)

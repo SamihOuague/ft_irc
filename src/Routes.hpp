@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   Client.hpp                                      :+:      :+:    :+:   */
+/*   Routes.hpp                                      :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: souaguen <souaguen@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -10,38 +10,25 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#ifndef CLIENT_HPP
-# define CLIENT_HPP
-# include <sys/socket.h>
-# include <arpa/inet.h>
+#ifndef ROUTES_HPP
+# define ROUTES_HPP
+# include <map>
 # include <string>
 # include <vector>
-#include <sys/epoll.h>
 
-class	Client
+class Server;
+class Client;
+
+class	Routes
 {
-	private:
-		int	fd;
-		sockaddr_in	addr;
-		std::string nick;
-		bool	isNew;
-		bool	isAuth;
-		bool	isOperator;
+	protected:
+		std::map<std::string, void (*)(Server *, Client *, std::vector<std::string>)>	routes;
 
 	public:
-		Client();
-		Client(Client const &);
-		Client &	operator=(Client const &);
-		int		acceptConnection(int const &);
-		int		getFd(void) const;
-		std::string	getNick(void) const;
-		void	setNick(std::string const &);
-		bool	getIsNew(void) const;
-		void	setIsNew(bool);
-		void	sendMsg(std::string const);
-		void	disconnect(int &);
-		bool	getIsAuth() const;
-		void	setIsAuth(bool);
-		~Client();
+		Routes();
+		Routes(Routes const &);
+		Routes &	operator=(Routes const &);
+		void	route(std::string, void (*)(Server *, Client *, std::vector<std::string>));
+		~Routes();
 };
 #endif

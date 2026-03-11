@@ -15,7 +15,7 @@
 #include <vector>
 #include <unistd.h>
 
-Client::Client(void): fd(-1), isNew(true), isAuth(false)
+Client::Client(void): fd(-1), isNew(true), isAuth(false), isOperator(false)
 {
 	//std::cout << "Client: Default constructor called." << std::endl;
 	return;

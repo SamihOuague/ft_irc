@@ -3,9 +3,10 @@ CPPFLAGS=-g -Wall -Werror -Wextra
 SRC=main.cpp \
 	src/Server.cpp \
 	src/Client.cpp \
-	src/Channel.cpp
+	src/Channel.cpp \
+	src/Routes.cpp
 OBJ=$(SRC:.cpp=.o)
-NAME=ft_irc
+NAME=ircserv
 
 all: $(NAME)
 

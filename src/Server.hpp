@@ -18,19 +18,22 @@
 # include <vector>
 # include "Client.hpp"
 # include "Channel.hpp"
+# include "Routes.hpp"
 
-class	Server
+class	Server: public Routes 
 {
 	private:
-		int	sockfd;
-		int	epollfd;
 		sockaddr_in	addr;
+
+	public:
+        static bool	isRunning;
+		int	epollfd;
+		int	sockfd;
 		std::string	password;
 		std::map<int, Client> clients;
 		std::map<std::string, Channel> channels;
 
-	public:
-        Server(void);
+		Server(void);
 		Server(unsigned short, std::string);
 		Server(Server const &);
 		Server &	operator=(Server const &);
