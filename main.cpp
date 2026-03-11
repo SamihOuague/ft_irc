@@ -20,30 +20,43 @@ void signal_handler(int signum)
     Server::isRunning = false;
 }
 
+void    welcome(Client *client)
+{
+    std::string msg;
+    std::string nick;
+
+    nick = (*client).getNick();
+    msg = ":localhost 001 " + nick + " :Welcome to the server " + nick + ".";
+    if ((*client).getNick().empty()
+            || (*client).getUser().empty()
+            || (*client).getPassword().empty())
+        msg = ":localhost 451 * :You have not registered";
+    
+    (*client).setIsNew(false);
+    (*client).sendMsg(msg);
+}
+
 void nick(Server *server, Client *client, std::vector<std::string> argv)
 {
     std::string nick;
     std::string msg;
 
-    if (argv.size() != 2 || !(*client).getIsAuth())
+    if (argv.size() != 2)
         return;
 
     nick = argv[1];
     if ((*server).getClient(nick) != NULL)
     {
-        msg = ":localhost 433 * " + nick + " :Nickname is already in use\r\n";
+        msg = ":localhost 433 * " + nick + " :Nickname is already in use";
         (*client).sendMsg(msg);
         return;
     }
-    if ((*client).getIsNew())
-    {
-        msg = ":localhost 001 " + nick + " :Welcome to the server " + nick + ".\r\n";
-        (*client).setIsNew(false);
-    }
-    else
-        msg = ":" + (*client).getNick() + "!" + (*client).getNick() + "@localhost NICK :" + nick + "\r\n";
+
     (*client).setNick(nick);
+    msg = (*client).getPrefix() + "NICK :" + nick;
     (*client).sendMsg(msg);
+    if (!(*client).getIsNew())
+        welcome(client);
 }
 
 void pass(Server *server, Client *client, std::vector<std::string> argv)
@@ -55,13 +68,13 @@ void pass(Server *server, Client *client, std::vector<std::string> argv)
     if (argv[1] != (*server).password)
     {
         std::cout << (*client).getNick() << std::endl;
-        msg = ":localhost 464 * :Incorrect Password\r\n";
+        msg = ":localhost 464 * :Incorrect Password";
         (*client).sendMsg(msg);
         (*client).disconnect((*server).epollfd);
         (*server).removeClient(client);
         return;
     }
-    (*client).setIsAuth(true);
+    (*client).setPassword(argv[1]);
     return;
 }
 
@@ -72,14 +85,16 @@ void join(Server *server, Client *client, std::vector<std::string> argv)
 
     if (argv.size() != 2 || argv[1] == ":")
         return;
+    if ((*server).channels.count(argv[1]) == 0)
+        (*server).channels[argv[1]].setName(argv[1]);
     (*server).channels[argv[1]].addClient(client);
-    msg = ":" + (*client).getNick() + "!" + (*client).getNick() + "@localhost JOIN :" + argv[1] + "\r\n";
+    msg = (*client).getPrefix() + "JOIN :" + argv[1] + "\r\n";
     (*server).channels[argv[1]].forwardMsg(client, msg);
     nick = "";
     for (int i = 0; i < (int)(*server).channels[argv[1]].getClients().size(); i++)
         nick += " " + (*(*server).channels[argv[1]].getClients()[i]).getNick();
-    msg += ":server 353 " + (*client).getNick() + " = " + argv[1] + " :" + nick + "\r\n";
-    msg += ":server 366 " + (*client).getNick() + " " + argv[1] + " :End of /NAMES list\r\n";
+    msg += ":localhost 353 " + (*client).getNick() + " = " + argv[1] + " :" + nick + "\r\n";
+    msg += ":localhost 366 " + (*client).getNick() + " " + argv[1] + " :End of /NAMES list";
 
     (*client).sendMsg(msg);
     return;
@@ -91,7 +106,7 @@ void privmsg(Server *server, Client *client, std::vector<std::string> argv)
 
     if (argv.size() != 3)
         return;
-    msg = ":" + (*client).getNick() + "!" + (*client).getNick() + "@localhost PRIVMSG " + argv[1] + " " + argv[2] + "\r\n";
+    msg = (*client).getPrefix() + "PRIVMSG " + argv[1] + " " + argv[2];
     if (argv[1][0] == '#')
         (*server).channels[argv[1]].forwardMsg(client, msg);
     else
@@ -108,13 +123,18 @@ void kick(Server *server, Client *client, std::vector<std::string> argv)
 
     if (argv.size() != 4)
         return;
-    msg = ":" + (*client).getNick() + "!" + (*client).getNick() + "@localhost KICK " + argv[1] + " " + argv[2] + " " + argv[3] + "\r\n";
+    if (!(*server).channels[argv[1]].isOperator(client))
+    {
+        msg = ":localhost " + argv[1] + " :You're not channel operator";
+        (*client).sendMsg(msg);
+        return ;
+    }
+    msg = (*client).getPrefix() + "KICK " + argv[1] + " " + argv[2] + " " + argv[3];
     for (int i = 0; i < (int)(*server).channels[argv[1]].getClients().size(); i++)
     {
         if ((*(*server).channels[argv[1]].getClients()[i]).getNick() == argv[2])
         {
-            (*server).channels[argv[1]].forwardMsg(client, msg);
-            (*client).sendMsg(msg);
+            (*server).channels[argv[1]].forwardMsg(NULL, msg);
             (*server).channels[argv[1]].removeClient((*server).channels[argv[1]].getClients()[i], "");
             break;
         }
@@ -142,6 +162,45 @@ void part(Server *server, Client *client, std::vector<std::string> argv)
     return;
 }
 
+void    user(Server *server, Client *client, std::vector<std::string> argv)
+{
+    (void)server;
+    if (argv.size() < 2)
+        return ;
+    (*client).setUser(argv[1]);
+    
+    welcome(client);
+    return ;
+}
+
+void    ping(Server *server, Client *client, std::vector<std::string> argv)
+{
+    (void)server;
+    if (argv.size() != 2)
+        return ;
+    std::cout << "PONG :" + argv[1] << std::endl;
+    (*client).sendMsg("PONG :" + argv[1]);
+}
+
+void    oper(Server *server, Client *client, std::vector<std::string> argv)
+{
+    std::string msg = ":localhost 381 " + (*client).getUser() +" :You are now an IRC operator";
+    std::string modeMsg = (*client).getPrefix() + "MODE " + (*client).getNick() +  " :+o";
+
+    if (argv.size() != 3)
+        return ;
+    if ((*client).getUser() != argv[1])
+        msg = ":localhost 491 " + (*client).getUser() + " :No O-lines for your host";
+    else if ((*server).opPassword != argv[2])
+        msg = ":localhost 464 " + (*client).getUser() + " :Incorrect Password";
+    else
+    {
+        (*client).setIsOperator(true);
+        (*server).forwardMsg(modeMsg);
+    }
+    (*client).sendMsg(msg);
+}
+
 int main(void)
 {
     Server server(6868, "pass");
@@ -153,6 +212,9 @@ int main(void)
     server.route("KICK", kick);
     server.route("QUIT", quit);
     server.route("PART", part);
+    server.route("USER", user);
+    server.route("PING", ping);
+    server.route("OPER", oper);
 
     signal(SIGINT, signal_handler);
     server.start();

@@ -15,7 +15,7 @@
 #include <vector>
 #include <unistd.h>
 
-Client::Client(void): fd(-1), isNew(true), isAuth(false), isOperator(false)
+Client::Client(void): fd(-1), user("~"), isNew(true), isOperator(false)
 {
 	//std::cout << "Client: Default constructor called." << std::endl;
 	return;
@@ -69,15 +69,20 @@ int Client::acceptConnection(int const &sockfd)
 	return (*this).fd;
 }
 
-bool	Client::getIsAuth(void) const
+void	Client::setPassword(std::string const &password)
 {
-	return ((*this).isAuth);
+	(*this).password = password;
+	return;
 }
 
-void	Client::setIsAuth(bool isAuth)
+std::string	Client::getPassword(void) const
 {
-	(*this).isAuth = isAuth;
-	return;
+	return (*this).password;
+}
+
+std::string	Client::getPrefix(void) const
+{
+	return std::string(":" + (*this).getNick() + "!" + (*this).getUser() + "@localhost ");
 }
 
 void	Client::setNick(std::string const &nick)
@@ -86,15 +91,37 @@ void	Client::setNick(std::string const &nick)
 	return;
 }
 
+void	Client::setIsOperator(bool isOperator)
+{
+	(*this).isOperator = isOperator;
+}
+
+bool	Client::getIsOperator(void) const
+{
+	return (*this).isOperator;
+}
+
 std::string	Client::getNick(void) const
 {
 	return (*this).nick;
 }
 
-void	Client::sendMsg(std::string const msg)
+void	Client::setUser(std::string const &user)
+{
+	(*this).user = user;
+	return;
+}
+
+std::string	Client::getUser(void) const
+{
+	return (*this).user;
+}
+
+void	Client::sendMsg(std::string msg)
 {
 	if (msg.size() <= 0)
 		return ;
+	msg += "\r\n";
 	send((*this).getFd(), msg.c_str(), msg.size(), 0);
 	return ;
 }

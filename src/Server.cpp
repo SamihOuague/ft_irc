@@ -24,7 +24,7 @@ Server::Server(): Server(6667, "password")
 	return;
 }
 
-Server::Server(unsigned short port, std::string password): password(password)
+Server::Server(unsigned short port, std::string password): password(password), opPassword("password")
 {
 	int opt = 1;
 	std::cout << "Server: Default constructor called." << std::endl;
@@ -60,6 +60,16 @@ Client	*Server::getClient(std::string &nick)
 		it++;
 	}
 	return (NULL);
+}
+
+void Server::forwardMsg(std::string &msg)
+{
+	std::map<int, Client>::iterator it = (*this).clients.begin();
+	for (int i = 0; i < (int)(*this).clients.size(); i++)
+	{
+		(*it).second.sendMsg(msg);
+		it++;
+	}
 }
 
 void	Server::removeClient(Client *client)

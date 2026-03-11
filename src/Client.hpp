@@ -23,9 +23,10 @@ class	Client
 	private:
 		int	fd;
 		sockaddr_in	addr;
-		std::string nick;
+		std::string	nick;
+		std::string	user;
+		std::string	password;
 		bool	isNew;
-		bool	isAuth;
 		bool	isOperator;
 
 	public:
@@ -36,12 +37,17 @@ class	Client
 		int		getFd(void) const;
 		std::string	getNick(void) const;
 		void	setNick(std::string const &);
+		std::string	getUser(void) const;
+		void	setUser(std::string const &);
+		std::string	getPassword(void) const;
+		std::string	getPrefix(void) const;
+		void	setPassword(std::string const &);
 		bool	getIsNew(void) const;
 		void	setIsNew(bool);
-		void	sendMsg(std::string const);
+		void	sendMsg(std::string);
+		void	setIsOperator(bool);
+		bool	getIsOperator(void) const;
 		void	disconnect(int &);
-		bool	getIsAuth() const;
-		void	setIsAuth(bool);
 		~Client();
 };
 #endif

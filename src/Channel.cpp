@@ -37,7 +37,34 @@ Channel &Channel::operator=(Channel const &instance)
 
 void Channel::addClient(Client *client)
 {
+	if ((*this).ops.size() == 0)
+		(*this).addOp(client);
     (*this).clients.push_back(client);
+}
+
+void	Channel::removeOp(Client *client)
+{
+	std::vector<Client *>::iterator it = (*this).ops.begin();
+	
+	for (int i = 0; i < (int)(*this).ops.size(); i++)
+	{
+		if (*it == client)
+		{ 
+			(*this).ops.erase(it, it+1);
+			break ;
+		}
+		it++;
+	}
+}
+
+void	Channel::addOp(Client *client)
+{
+	std::string	msg = (*client).getPrefix() + "MODE " + (*this).name + " +o " + (*client).getNick();
+
+	std::cout << msg << std::endl;
+	(*this).removeOp(client);
+	(*this).ops.push_back(client);
+	(*this).forwardMsg(NULL, msg);
 }
 
 void	Channel::removeClient(Client *client, std::string msg)
@@ -45,7 +72,7 @@ void	Channel::removeClient(Client *client, std::string msg)
 	std::vector<Client *>::iterator it = (*this).clients.begin();
 	std::string	msgi;
 	
-	msgi = ":" + (*client).getNick() + "!" + (*client).getNick() + "@localhost " + msg + "\r\n";
+	msgi = ":" + (*client).getNick() + "!" + (*client).getNick() + "@localhost " + msg;
 	for (int i = 0; i < (int)(*this).clients.size(); i++)
 	{
 		if (*it == client)
@@ -53,10 +80,13 @@ void	Channel::removeClient(Client *client, std::string msg)
 			if (msg.size() > 0)
 				(*this).forwardMsg(NULL, msgi); 
 			(*this).clients.erase(it, it+1);
+			(*this).removeOp(client);
 			break ;
 		}
 		it++;
 	}
+	if ((*this).ops.size() == 0)
+		(*this).addOp(clients[0]);
 }
 
 Client	*Channel::getClient(std::string nick) const
@@ -83,6 +113,21 @@ void Channel::forwardMsg(Client *client, std::string &msg)
 std::vector<Client *>   Channel::getClients() const
 {
     return (*this).clients;
+}
+
+bool	Channel::isOperator(Client *client) const
+{
+	for (int i = 0; i < (int)(*this).ops.size(); i++)
+	{
+		if ((*this).ops[i] == client)
+			return (true);
+	}
+	return (false);
+}
+
+void	Channel::setName(std::string name)
+{
+	(*this).name = name;
 }
 
 Channel::~Channel(void)

@@ -30,6 +30,7 @@ class	Server: public Routes
 		int	epollfd;
 		int	sockfd;
 		std::string	password;
+		std::string	opPassword;
 		std::map<int, Client> clients;
 		std::map<std::string, Channel> channels;
 
@@ -47,5 +48,6 @@ class	Server: public Routes
 		int		newClient();
 		Client	*	getClient(std::string &);
 		void	removeClient(Client *client);
+		void	forwardMsg(std::string &msg);
 };
 #endif

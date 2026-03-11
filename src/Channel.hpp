@@ -31,7 +31,11 @@ class	Channel
         void removeClient(Client *client, std::string msg);
         std::vector<Client *> getClients() const;
 		void	forwardMsg(Client *client, std::string &msg);
+		bool	isOperator(Client *) const;
+		void	removeOp(Client *);
 		Client	*getClient(std::string) const;
+		void	addOp(Client *);
+		void	setName(std::string);
 		~Channel();
 };
 #endif
