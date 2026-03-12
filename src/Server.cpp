@@ -239,8 +239,16 @@ std::vector<std::string> extract_cmd(std::string req)
 
 void Server::execCmd(Client *client, std::vector<std::string> argv)
 {
-	std::string msg;
-	std::string nick;
+	std::string	msg = ":localhost 451 * :You have not registered";
+
+	if ((*client).getIsNew()
+		&& argv[0] != "USER"
+		&& argv[0] != "NICK"
+		&& argv[0] != "PASS")
+	{
+		(*client).sendMsg(msg);
+		return ;
+	}
 	if (argv.size() < 1)
 		return;
 	if ((*this).routes.count(argv[0]))
@@ -274,14 +282,17 @@ void	Server::readCmd(Client *client)
 {
 	char buffer[512];
 	
-	for (int bytes = recv((*client).getFd(), buffer, 511, MSG_DONTWAIT); bytes > 0; bytes = recv((*client).getFd(), buffer, 511, MSG_DONTWAIT))
+	for (int bytes = recv((*client).getFd(), buffer, 511, MSG_DONTWAIT); ; bytes = recv((*client).getFd(), buffer, 511, MSG_DONTWAIT))
 	{
-		if (bytes == 0)
+		if (bytes <= 0)
 		{
-			(*this).removeClient(client);
-			(*client).disconnect((*this).epollfd);
+			if (bytes == 0)
+			{
+				(*this).removeClient(client);
+				(*client).disconnect((*this).epollfd);
+			}
 			break ;
-		}
+		} 
 		buffer[bytes] = '\0';
 		(*client).buffer += std::string(buffer);
 	}

@@ -27,11 +27,14 @@ void welcome(Client *client)
 
     nick = (*client).getNick();
     msg = ":localhost 001 " + nick + " :Welcome to the server " + nick + ".";
-    if ((*client).getNick().empty() || (*client).getUser().empty() || (*client).getPassword().empty())
-        msg = ":localhost 451 * :You have not registered";
+    if ((*client).getNick().empty()
+            ||(*client).getUser().empty()
+            || (*client).getPassword().empty())
+        return ;
     else
         (*client).setIsNew(false);
     (*client).sendMsg(msg);
+    
 }
 
 void nick(Server *server, Client *client, std::vector<std::string> argv)
@@ -62,6 +65,17 @@ void nick(Server *server, Client *client, std::vector<std::string> argv)
 
     if ((*client).getIsNew())
         welcome(client);
+}
+
+void user(Server *server, Client *client, std::vector<std::string> argv)
+{
+    (void)server;
+    if (argv.size() < 2)
+        return;
+    (*client).setUser(argv[1]);
+    if ((*client).getIsNew())
+        welcome(client);
+    return;
 }
 
 void pass(Server *server, Client *client, std::vector<std::string> argv)
@@ -107,14 +121,15 @@ void join(Server *server, Client *client, std::vector<std::string> argv)
     if ((*server).channels.count(argv[1]) == 0)
         (*server).channels[argv[1]].setName(argv[1]);
     (*server).channels[argv[1]].addClient(client);
-    msg = (*client).getPrefix() + "JOIN :" + argv[1] + "\r\n";
+    msg = (*client).getPrefix() + "JOIN :" + argv[1] + "\n";
     (*server).channels[argv[1]].forwardMsg(client, msg);
     nick = "";
     for (int i = 0; i < (int)(*server).channels[argv[1]].getClients().size(); i++)
         nick += " " + (*(*server).channels[argv[1]].getClients()[i]).getNick();
-    msg += ":localhost 353 " + (*client).getNick() + " = " + argv[1] + " :" + nick + "\r\n";
-    msg += ":localhost 366 " + (*client).getNick() + " " + argv[1] + " :End of /NAMES list\r\n";
+    msg += ":localhost 353 " + (*client).getNick() + " = " + argv[1] + " :" + nick + "\n";
+    msg += ":localhost 366 " + (*client).getNick() + " " + argv[1] + " :End of /NAMES list\n";
     msg += rplTopic((*server).channels[argv[1]], (*client).getNick());
+    std::cout << msg << std::endl;
     (*client).sendMsg(msg);
     return;
 }
@@ -154,7 +169,7 @@ void kick(Server *server, Client *client, std::vector<std::string> argv)
     msg = (*client).getPrefix() + "KICK " + argv[1] + " " + argv[2];
     if (argv.size() == 4)
         msg += argv[3];
-    msg += "\r\n" + (*(*server).getClient(argv[2])).getPrefix() + "PART " + argv[1];
+    msg += "\n" + (*(*server).getClient(argv[2])).getPrefix() + "PART " + argv[1];
     for (int i = 0; i < (int)(*server).channels[argv[1]].getClients().size(); i++)
     {
         if ((*(*server).channels[argv[1]].getClients()[i]).getNick() == argv[2])
@@ -186,19 +201,6 @@ void part(Server *server, Client *client, std::vector<std::string> argv)
         msg += " " + argv[2];
     (*server).channels[argv[1]].forwardMsg(NULL, msg);
     (*server).channels[argv[1]].removeClient(client);
-    return;
-}
-
-void user(Server *server, Client *client, std::vector<std::string> argv)
-{
-    (void)server;
-    if (argv.size() < 2)
-        return;
-    (*client).setUser(argv[1]);
-
-    std::cout << argv[0] << " " << argv[1] << std::endl;
-    if ((*client).getIsNew())
-        welcome(client);
     return;
 }
 
