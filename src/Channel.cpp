@@ -42,7 +42,7 @@ Channel &Channel::operator=(Channel const &instance)
 void Channel::addClient(Client *client)
 {
 	if ((*this).ops.size() == 0)
-		(*this).addOp(client);
+		(*this).addOp(client, client);
     (*this).clients.push_back(client);
 }
 
@@ -61,9 +61,9 @@ void	Channel::removeOp(Client *client)
 	}
 }
 
-void	Channel::addOp(Client *client)
+void	Channel::addOp(Client *client, Client *op)
 {
-	std::string	msg = (*client).getPrefix() + "MODE " + (*this).name + " +o " + (*client).getNick();
+	std::string	msg = (*op).getPrefix() + "MODE " + (*this).name + " +o " + (*client).getNick();
 
 	(*this).removeOp(client);
 	(*this).ops.push_back(client);
@@ -85,7 +85,7 @@ void	Channel::removeClient(Client *client)
 		it++;
 	}
 	if ((*this).ops.size() == 0)
-		(*this).addOp(clients[0]);
+		(*this).addOp(clients[0], client);
 }
 
 std::string	Channel::getName()

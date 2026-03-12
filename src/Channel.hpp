@@ -35,7 +35,7 @@ class	Channel
 		bool	isOperator(Client *) const;
 		void	removeOp(Client *);
 		Client	*getClient(std::string) const;
-		void	addOp(Client *);
+		void	addOp(Client *, Client *);
 		void	setName(std::string);
 		std::string	getName();
 		std::string	getTopic(void) const;

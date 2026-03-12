@@ -29,8 +29,8 @@ void welcome(Client *client)
     msg = ":localhost 001 " + nick + " :Welcome to the server " + nick + ".";
     if ((*client).getNick().empty() || (*client).getUser().empty() || (*client).getPassword().empty())
         msg = ":localhost 451 * :You have not registered";
-
-    (*client).setIsNew(false);
+    else
+        (*client).setIsNew(false);
     (*client).sendMsg(msg);
 }
 
@@ -50,10 +50,11 @@ void nick(Server *server, Client *client, std::vector<std::string> argv)
         return;
     }
 
-    (*client).setNick(nick);
     msg = (*client).getPrefix() + "NICK :" + nick;
+    (*client).setNick(nick);
     (*client).sendMsg(msg);
-    if (!(*client).getIsNew())
+    std::cout << msg << std::endl;
+    if ((*client).getIsNew())
         welcome(client);
 }
 
@@ -73,6 +74,8 @@ void pass(Server *server, Client *client, std::vector<std::string> argv)
         return;
     }
     (*client).setPassword(argv[1]);
+    if ((*client).getIsNew())
+        welcome(client);
     return;
 }
 
@@ -93,6 +96,8 @@ void join(Server *server, Client *client, std::vector<std::string> argv)
 
     if (argv.size() != 2 || argv[1] == ":")
         return;
+    if (argv[1][0] != '#')
+        argv[1] = "#" + argv[1];
     if ((*server).channels.count(argv[1]) == 0)
         (*server).channels[argv[1]].setName(argv[1]);
     (*server).channels[argv[1]].addClient(client);
@@ -129,15 +134,20 @@ void kick(Server *server, Client *client, std::vector<std::string> argv)
 {
     std::string msg;
 
-    if (argv.size() != 4)
-        return;
+    for (int i = 0; i < (int)argv.size(); i++)
+        std::cout << argv[i] << " ";
+    std::cout << std::endl;
+    if (argv.size() != 4 && argv.size() != 3)
+        return ;
     if (!(*server).channels[argv[1]].isOperator(client))
     {
         msg = ":localhost 482 " + argv[1] + " :You're not channel operator";
         (*client).sendMsg(msg);
         return;
     }
-    msg = (*client).getPrefix() + "KICK " + argv[1] + " " + argv[2] + " " + argv[3];
+    msg = (*client).getPrefix() + "KICK " + argv[1] + " " + argv[2];
+    if (argv.size() == 4)
+        msg += argv[3];
     for (int i = 0; i < (int)(*server).channels[argv[1]].getClients().size(); i++)
     {
         if ((*(*server).channels[argv[1]].getClients()[i]).getNick() == argv[2])
@@ -179,7 +189,9 @@ void user(Server *server, Client *client, std::vector<std::string> argv)
         return;
     (*client).setUser(argv[1]);
 
-    welcome(client);
+    std::cout << argv[0] << " " << argv[1] << std::endl;
+    if ((*client).getIsNew())
+        welcome(client);
     return;
 }
 
