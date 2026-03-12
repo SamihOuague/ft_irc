@@ -38,6 +38,7 @@ void nick(Server *server, Client *client, std::vector<std::string> argv)
 {
     std::string nick;
     std::string msg;
+    std::map<std::string, Channel>::iterator itc = (*server).channels.begin();
 
     if (argv.size() != 2)
         return;
@@ -52,8 +53,13 @@ void nick(Server *server, Client *client, std::vector<std::string> argv)
 
     msg = (*client).getPrefix() + "NICK :" + nick;
     (*client).setNick(nick);
+	for (int i = 0; i < (int)(*server).channels.size(); i++)
+	{
+		(*itc).second.forwardMsg(client, msg);
+		itc++;
+	}
     (*client).sendMsg(msg);
-    std::cout << msg << std::endl;
+
     if ((*client).getIsNew())
         welcome(client);
 }
@@ -148,6 +154,7 @@ void kick(Server *server, Client *client, std::vector<std::string> argv)
     msg = (*client).getPrefix() + "KICK " + argv[1] + " " + argv[2];
     if (argv.size() == 4)
         msg += argv[3];
+    msg += "\r\n" + (*(*server).getClient(argv[2])).getPrefix() + "PART " + argv[1];
     for (int i = 0; i < (int)(*server).channels[argv[1]].getClients().size(); i++)
     {
         if ((*(*server).channels[argv[1]].getClients()[i]).getNick() == argv[2])
