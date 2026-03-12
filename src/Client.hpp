@@ -26,6 +26,8 @@ class	Client
 		std::string	nick;
 		std::string	user;
 		std::string	password;
+		std::vector<std::string> limitedChan;
+		bool	isRegistered;
 		bool	isNew;
 		bool	isOperator;
 
@@ -49,6 +51,9 @@ class	Client
 		void	sendMsg(std::string);
 		void	setIsOperator(bool);
 		bool	getIsOperator(void) const;
+		void	addLimitedChannel(std::string);
+		void	removeLimitedChannel(std::string);
+		bool	isLimited(std::string) const;
 		void	disconnect(int &);
 		~Client();
 };

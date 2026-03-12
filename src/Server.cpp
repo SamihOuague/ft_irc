@@ -267,7 +267,8 @@ void Server::execReq(Client *client)
 	long unsigned int bnpos = -1;
 	std::vector<std::string> argv;
 
-	(*this).readCmd(client);
+	if ((*this).readCmd(client) == -1)
+		return ;
 	while ((*client).buffer.find('\n') != std::string::npos)
 	{
 		bnpos = (*client).buffer.find('\n');
@@ -278,7 +279,7 @@ void Server::execReq(Client *client)
 	}
 }
 
-void	Server::readCmd(Client *client)
+int	Server::readCmd(Client *client)
 {
 	char buffer[512];
 	
@@ -288,12 +289,14 @@ void	Server::readCmd(Client *client)
 		{
 			if (bytes == 0)
 			{
-				(*this).removeClient(client);
 				(*client).disconnect((*this).epollfd);
+				(*this).removeClient(client);
+				return (-1);
 			}
-			break ;
+			return (0);
 		} 
 		buffer[bytes] = '\0';
 		(*client).buffer += std::string(buffer);
 	}
+	return (0);
 }

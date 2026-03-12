@@ -39,6 +39,38 @@ Channel &Channel::operator=(Channel const &instance)
 	return (*this);
 }
 
+void	Channel::setPass(std::string pass)
+{
+	(*this).pass = pass;
+}
+
+bool	Channel::checkPass(std::string pass) const
+{
+	if ((*this).pass.compare(pass) != 0)
+		return false;
+	return true;
+}
+
+void	Channel::addOperator(Client *client)
+{
+	if ((*this).isOperator(client))
+		return ;
+	(*this).ops.push_back(client);
+}
+
+bool	Channel::isLimited(std::string nick) const
+{
+	Client *user = (*this).getClient(nick);
+	if (user == NULL)
+		return false;
+	for (int i = 0; i < (int)(*this).limitedUsers.size(); i++)
+	{
+		if ((*this).ops[i] == user)
+			return (true);
+	}
+	return (false);
+}
+
 void Channel::addClient(Client *client)
 {
 	if ((*this).ops.size() == 0)
@@ -51,6 +83,27 @@ void	Channel::removeOp(Client *client)
 	std::vector<Client *>::iterator it = (*this).ops.begin();
 	
 	for (int i = 0; i < (int)(*this).ops.size(); i++)
+	{
+		if (*it == client)
+		{ 
+			(*this).ops.erase(it, it+1);
+			break ;
+		}
+		it++;
+	}
+}
+
+void	Channel::addUserLimit(Client *client)
+{
+	if (!(*this).isLimited((*client).getNick()))
+		(*this).limitedUsers.push_back(client);
+}
+
+void	Channel::removeUserLimit(Client *client)
+{
+	std::vector<Client *>::iterator it = (*this).limitedUsers.begin();
+	
+	for (int i = 0; i < (int)(*this).limitedUsers.size(); i++)
 	{
 		if (*it == client)
 		{ 
@@ -84,7 +137,7 @@ void	Channel::removeClient(Client *client)
 		}
 		it++;
 	}
-	if ((*this).ops.size() == 0)
+	if ((*this).ops.size() == 0 && (*this).clients.size() != 0)
 		(*this).addOp(clients[0], client);
 }
 
@@ -148,4 +201,29 @@ Channel::~Channel(void)
 {
 	//std::cout << "Channel: Destructor called." << std::endl;
 	return;
+}
+
+void	Channel::setInviteOnly(bool inviteOnly)
+{
+	(*this).inviteOnly = inviteOnly;
+}
+
+bool	Channel::isInviteOnly() const
+{
+	return (*this).inviteOnly;
+}
+
+void	Channel::limitUser(Client *client)
+{
+	(*this).limitedUsers.push_back(client);
+}
+
+void	Channel::setTopicRestricted(bool topicRestricted)
+{
+	(*this).topicRestricted = topicRestricted;
+}
+
+bool	Channel::isTopicRestricted() const
+{
+	return (*this).topicRestricted;
 }

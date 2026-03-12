@@ -135,6 +135,37 @@ void	Client::disconnect(int & epollfd)
 	return ;
 }
 
+void	Client::addLimitedChannel(std::string channel)
+{
+	if (!(*this).isLimited(channel))
+		(*this).limitedChan.push_back(channel);
+}
+
+void	Client::removeLimitedChannel(std::string channel)
+{
+	std::vector<std::string>::iterator it = (*this).limitedChan.begin();
+	
+	for (int i = 0; i < (int)(*this).limitedChan.size(); i++)
+	{
+		if (*it == channel)
+		{ 
+			(*this).limitedChan.erase(it, it+1);
+			break ;
+		}
+		it++;
+	}
+}
+
+bool	Client::isLimited(std::string channel) const
+{
+	for (int i = 0; i < (int)(*this).limitedChan.size(); i++)
+	{
+		if ((*this).limitedChan[i] == channel)
+			return (true);
+	}
+	return (false);
+}
+
 Client::~Client(void)
 {
 	//std::cout << "Client: Destructor called." << std::endl;

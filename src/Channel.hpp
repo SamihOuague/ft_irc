@@ -21,8 +21,12 @@ class	Channel
 	private:
 		std::vector<Client *> clients;
 		std::vector<Client *> ops;
+		std::vector<Client *> limitedUsers;
         std::string name;
 		std::string	topic;
+		std::string	pass;
+		bool	inviteOnly;
+		bool	topicRestricted;
 
 	public:
 		Channel();
@@ -33,13 +37,24 @@ class	Channel
         std::vector<Client *> getClients() const;
 		void	forwardMsg(Client *client, std::string &msg);
 		bool	isOperator(Client *) const;
+		void	addOperator(Client *);
 		void	removeOp(Client *);
 		Client	*getClient(std::string) const;
+		bool	isLimited(std::string) const;
+		void	limitUser(Client *);
+		void	addUserLimit(Client *);
+		void	removeUserLimit(Client *);
 		void	addOp(Client *, Client *);
 		void	setName(std::string);
 		std::string	getName();
 		std::string	getTopic(void) const;
 		void	setTopic(std::string);
+		bool	checkPass(std::string) const;
+		void	setPass(std::string);
+		void	setInviteOnly(bool);
+		void	setTopicRestricted(bool);
+		bool	isInviteOnly() const;
+		bool	isTopicRestricted() const;
 		~Channel();
 };
 #endif

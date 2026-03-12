@@ -25,17 +25,19 @@ void welcome(Client *client)
     std::string msg;
     std::string nick;
 
-    nick = (*client).getNick();
-    msg = ":localhost 001 " + nick + " :Welcome to the server " + nick + ".";
     if ((*client).getNick().empty()
             ||(*client).getUser().empty()
-            || (*client).getPassword().empty())
+            || (*client).getPassword().empty()
+            || !(*client).getIsNew())
         return ;
-    else
-        (*client).setIsNew(false);
+    nick = (*client).getNick();
+    msg = ":localhost 001 " + nick + " :Welcome to the server " + nick + ".";
+    (*client).setIsNew(false);
     (*client).sendMsg(msg);
     
 }
+
+
 
 void nick(Server *server, Client *client, std::vector<std::string> argv)
 {
@@ -62,9 +64,7 @@ void nick(Server *server, Client *client, std::vector<std::string> argv)
 		itc++;
 	}
     (*client).sendMsg(msg);
-
-    if ((*client).getIsNew())
-        welcome(client);
+    welcome(client);
 }
 
 void user(Server *server, Client *client, std::vector<std::string> argv)
@@ -73,8 +73,8 @@ void user(Server *server, Client *client, std::vector<std::string> argv)
     if (argv.size() < 2)
         return;
     (*client).setUser(argv[1]);
-    if ((*client).getIsNew())
-        welcome(client);
+    
+    welcome(client);
     return;
 }
 
@@ -94,8 +94,7 @@ void pass(Server *server, Client *client, std::vector<std::string> argv)
         return;
     }
     (*client).setPassword(argv[1]);
-    if ((*client).getIsNew())
-        welcome(client);
+    welcome(client);
     return;
 }
 
@@ -129,7 +128,6 @@ void join(Server *server, Client *client, std::vector<std::string> argv)
     msg += ":localhost 353 " + (*client).getNick() + " = " + argv[1] + " :" + nick + "\n";
     msg += ":localhost 366 " + (*client).getNick() + " " + argv[1] + " :End of /NAMES list\n";
     msg += rplTopic((*server).channels[argv[1]], (*client).getNick());
-    std::cout << msg << std::endl;
     (*client).sendMsg(msg);
     return;
 }
@@ -273,6 +271,64 @@ void    topic(Server *server, Client *client, std::vector<std::string> argv)
     return ;
 }
 
+/*
+· i: Set/remove Invite-only channel
+· t: Set/remove the restrictions of the TOPIC command to channel
+operators
+· k: Set/remove the channel key (password)
+· o: Give/take channel operator privilege
+· l: Set/remove the user limit to channel
+*/
+
+void    mode(Server *server, Client *client, std::vector<std::string> argv)
+{
+    std::string flags;
+    std::string msg;
+
+    if (argv.size() < 3 || argv[1][0] != '#')
+        return ;
+    if (!(*server).channels[argv[1]].isOperator(client))
+    {
+        msg = ":localhost 482 " + argv[1] + " :You're not channel operator";
+        (*client).sendMsg(msg);
+        return;
+    }
+    flags = argv[2];
+    if (flags[0] != '+' && flags[0] != '-')
+        return ;
+    msg = (*client).getPrefix() + "MODE " + argv[1] + " " + flags[0];
+    for (int i = 1; i < (int)flags.size(); i++)
+    {
+        if (flags[i] == 'i')
+            (*server).channels[argv[1]].setInviteOnly(flags[0] == '+');
+        else if (flags[i] == 't')
+            (*server).channels[argv[1]].setTopicRestricted(flags[0] == '+');
+        else if (flags[i] == 'k' && (argv.size() == 4 || flags[0] == '-'))
+            (*server).channels[argv[1]].setPass((flags[0] == '+') ? argv[3] : "");
+        else if (flags[i] == 'o' && argv.size() == 4)
+        {
+            if ((*server).getClient(argv[3]) == NULL
+                    || (*server).channels[argv[1]].getClient(argv[3]) == NULL)
+                continue ;
+            if (flags[0] == '+')
+                (*server).channels[argv[1]].addOperator((*server).getClient(argv[3]));
+        }
+        else if (flags[i] == 'l')
+        {
+            if ((*server).channels[argv[1]].getClient(argv[3]) == NULL)
+                return ;
+            if (flags[0] == '+')
+                (*server).channels[argv[1]].addUserLimit((*server).getClient(argv[3]));
+            else
+                (*server).channels[argv[1]].removeUserLimit((*server).getClient(argv[3]));
+        }
+        if (std::string("itkol").find(flags[i]) != std::string::npos)
+            msg += flags[i];
+    }
+    msg += (argv.size() == 4) ? argv[3] : "";
+    (*server).channels[argv[1]].forwardMsg(NULL, msg);
+}
+
 int main(void)
 {
     Server server(6868, "pass");
@@ -289,7 +345,7 @@ int main(void)
     server.route("OPER", oper);
     server.route("INVITE", invite);
     server.route("TOPIC", topic);
-
+    server.route("MODE", mode);
     signal(SIGINT, signal_handler);
     server.start();
     return (0);
