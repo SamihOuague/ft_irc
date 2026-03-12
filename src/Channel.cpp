@@ -14,7 +14,7 @@
 #include <iostream>
 #include <vector>
 
-Channel::Channel(void)
+Channel::Channel(void): topic("")
 {
 	//std::cout << "Channel: Default constructor called." << std::endl;
 	return;
@@ -32,6 +32,10 @@ Channel &Channel::operator=(Channel const &instance)
 	//std::cout << "Channel: Assignation overload called." << std::endl;
 	if (this == &instance)
 		return (*this);
+	clients = instance.clients;
+	ops = instance.ops;
+    name = instance.name;
+	topic = instance.topic;
 	return (*this);
 }
 
@@ -61,24 +65,19 @@ void	Channel::addOp(Client *client)
 {
 	std::string	msg = (*client).getPrefix() + "MODE " + (*this).name + " +o " + (*client).getNick();
 
-	std::cout << msg << std::endl;
 	(*this).removeOp(client);
 	(*this).ops.push_back(client);
 	(*this).forwardMsg(NULL, msg);
 }
 
-void	Channel::removeClient(Client *client, std::string msg)
+void	Channel::removeClient(Client *client)
 {
 	std::vector<Client *>::iterator it = (*this).clients.begin();
-	std::string	msgi;
 	
-	msgi = ":" + (*client).getNick() + "!" + (*client).getNick() + "@localhost " + msg;
 	for (int i = 0; i < (int)(*this).clients.size(); i++)
 	{
 		if (*it == client)
-		{
-			if (msg.size() > 0)
-				(*this).forwardMsg(NULL, msgi); 
+		{ 
 			(*this).clients.erase(it, it+1);
 			(*this).removeOp(client);
 			break ;
@@ -87,6 +86,21 @@ void	Channel::removeClient(Client *client, std::string msg)
 	}
 	if ((*this).ops.size() == 0)
 		(*this).addOp(clients[0]);
+}
+
+std::string	Channel::getName()
+{
+	return ((*this).name);
+}
+
+std::string	Channel::getTopic(void) const
+{
+	return ((*this).topic);
+}
+
+void	Channel::setTopic(std::string topic)
+{
+	(*this).topic = topic;
 }
 
 Client	*Channel::getClient(std::string nick) const

@@ -76,10 +76,13 @@ void	Server::removeClient(Client *client)
 {
 	std::map<int, Client>::iterator it = (*this).clients.begin();
 	std::map<std::string, Channel>::iterator itc = (*this).channels.begin();
+	std::string	msg;
 
 	for (int i = 0; i < (int)(*this).channels.size(); i++)
 	{
-		(*itc).second.removeClient(client, "QUIT :Client disconnected"); 
+		msg = (*client).getPrefix() + "QUIT :Client disconnected";
+		(*itc).second.removeClient(client);
+		(*itc).second.forwardMsg(NULL, msg);
 		itc++;
 	}
 	for (int i = 0; i < (int)(*this).clients.size(); i++)
@@ -166,7 +169,7 @@ int Server::newClient()
 	}
 	std::string msg = "CAP * LS :NICK PASS JOIN PRIVMSG KICK QUIT PART\r\n";
 	std::cout << "Client connected" << std::endl;
-	send(conn_sock, msg.c_str(), msg.size(), 0);
+	send(conn_sock, msg.c_str(), msg.size(), MSG_DONTWAIT);
 	return (0);
 }
 
@@ -252,37 +255,34 @@ void Server::execCmd(Client *client, std::vector<std::string> argv)
 
 void Server::execReq(Client *client)
 {
-	std::string cursor("");
 	std::string cmd("");
 	long unsigned int bnpos = -1;
 	std::vector<std::string> argv;
 
-	cursor = (*this).readCmd((*client).getFd());
-	while (cursor.find('\n') != std::string::npos)
+	(*this).readCmd(client);
+	while ((*client).buffer.find('\n') != std::string::npos)
 	{
-		bnpos = cursor.find('\n');
-		cmd = cursor.substr(0, bnpos);
-		cursor = cursor.substr(bnpos + 1);
+		bnpos = (*client).buffer.find('\n');
+		cmd = (*client).buffer.substr(0, bnpos);
+		(*client).buffer = (*client).buffer.substr(bnpos + 1);
 		argv = extract_cmd(cmd);
 		(*this).execCmd(client, argv);
 	}
 }
 
-std::string Server::readCmd(int const conn_sock)
+void	Server::readCmd(Client *client)
 {
 	char buffer[512];
-	std::string msg("");
-
-	while (true)
+	
+	for (int bytes = recv((*client).getFd(), buffer, 511, MSG_DONTWAIT); bytes > 0; bytes = recv((*client).getFd(), buffer, 511, MSG_DONTWAIT))
 	{
-		int bytes = recv(conn_sock, buffer, 511, 0);
-
-		if (bytes <= 0)
-			break;
+		if (bytes == 0)
+		{
+			(*this).removeClient(client);
+			(*client).disconnect((*this).epollfd);
+			break ;
+		}
 		buffer[bytes] = '\0';
-		msg = msg + std::string(buffer);
-		if (buffer[bytes - 1] == '\n' && buffer[bytes - 2] == '\r')
-			break;
+		(*client).buffer += std::string(buffer);
 	}
-	return msg;
 }

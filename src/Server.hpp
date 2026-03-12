@@ -40,7 +40,7 @@ class	Server: public Routes
 		Server &	operator=(Server const &);
 		~Server();
 		void	start();
-		std::string	readCmd(int const);
+		void	readCmd(Client *);
 		void	execCmd(Client *, std::vector<std::string>);
 		void	execReq(Client *);
 		int		init();

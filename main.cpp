@@ -20,18 +20,16 @@ void signal_handler(int signum)
     Server::isRunning = false;
 }
 
-void    welcome(Client *client)
+void welcome(Client *client)
 {
     std::string msg;
     std::string nick;
 
     nick = (*client).getNick();
     msg = ":localhost 001 " + nick + " :Welcome to the server " + nick + ".";
-    if ((*client).getNick().empty()
-            || (*client).getUser().empty()
-            || (*client).getPassword().empty())
+    if ((*client).getNick().empty() || (*client).getUser().empty() || (*client).getPassword().empty())
         msg = ":localhost 451 * :You have not registered";
-    
+
     (*client).setIsNew(false);
     (*client).sendMsg(msg);
 }
@@ -78,6 +76,16 @@ void pass(Server *server, Client *client, std::vector<std::string> argv)
     return;
 }
 
+std::string rplTopic(Channel channel, std::string nick)
+{
+    std::string rplmsg;
+    
+    rplmsg = ":localhost 332 " + nick + " " + channel.getName() + " " + channel.getTopic();
+    if (channel.getTopic().empty())
+        rplmsg = ":localhost 331 " + channel.getName() + " :No topic";   
+    return (rplmsg);
+}
+
 void join(Server *server, Client *client, std::vector<std::string> argv)
 {
     std::string msg;
@@ -94,8 +102,8 @@ void join(Server *server, Client *client, std::vector<std::string> argv)
     for (int i = 0; i < (int)(*server).channels[argv[1]].getClients().size(); i++)
         nick += " " + (*(*server).channels[argv[1]].getClients()[i]).getNick();
     msg += ":localhost 353 " + (*client).getNick() + " = " + argv[1] + " :" + nick + "\r\n";
-    msg += ":localhost 366 " + (*client).getNick() + " " + argv[1] + " :End of /NAMES list";
-
+    msg += ":localhost 366 " + (*client).getNick() + " " + argv[1] + " :End of /NAMES list\r\n";
+    msg += rplTopic((*server).channels[argv[1]], (*client).getNick());
     (*client).sendMsg(msg);
     return;
 }
@@ -125,9 +133,9 @@ void kick(Server *server, Client *client, std::vector<std::string> argv)
         return;
     if (!(*server).channels[argv[1]].isOperator(client))
     {
-        msg = ":localhost " + argv[1] + " :You're not channel operator";
+        msg = ":localhost 482 " + argv[1] + " :You're not channel operator";
         (*client).sendMsg(msg);
-        return ;
+        return;
     }
     msg = (*client).getPrefix() + "KICK " + argv[1] + " " + argv[2] + " " + argv[3];
     for (int i = 0; i < (int)(*server).channels[argv[1]].getClients().size(); i++)
@@ -135,7 +143,7 @@ void kick(Server *server, Client *client, std::vector<std::string> argv)
         if ((*(*server).channels[argv[1]].getClients()[i]).getNick() == argv[2])
         {
             (*server).channels[argv[1]].forwardMsg(NULL, msg);
-            (*server).channels[argv[1]].removeClient((*server).channels[argv[1]].getClients()[i], "");
+            (*server).channels[argv[1]].removeClient((*server).channels[argv[1]].getClients()[i]);
             break;
         }
     }
@@ -153,42 +161,43 @@ void quit(Server *server, Client *client, std::vector<std::string> argv)
 void part(Server *server, Client *client, std::vector<std::string> argv)
 {
     std::string msg;
+
     if (argv.size() < 2)
         return;
-    msg = "PART " + argv[1];
+    msg = (*client).getPrefix() + "PART " + argv[1];
     if (argv.size() > 2)
         msg += " " + argv[2];
-    (*server).channels[argv[1]].removeClient(client, msg);
+    (*server).channels[argv[1]].forwardMsg(NULL, msg);
+    (*server).channels[argv[1]].removeClient(client);
     return;
 }
 
-void    user(Server *server, Client *client, std::vector<std::string> argv)
+void user(Server *server, Client *client, std::vector<std::string> argv)
 {
     (void)server;
     if (argv.size() < 2)
-        return ;
+        return;
     (*client).setUser(argv[1]);
-    
+
     welcome(client);
-    return ;
+    return;
 }
 
-void    ping(Server *server, Client *client, std::vector<std::string> argv)
+void ping(Server *server, Client *client, std::vector<std::string> argv)
 {
     (void)server;
     if (argv.size() != 2)
-        return ;
-    std::cout << "PONG :" + argv[1] << std::endl;
+        return;
     (*client).sendMsg("PONG :" + argv[1]);
 }
 
-void    oper(Server *server, Client *client, std::vector<std::string> argv)
+void oper(Server *server, Client *client, std::vector<std::string> argv)
 {
-    std::string msg = ":localhost 381 " + (*client).getUser() +" :You are now an IRC operator";
-    std::string modeMsg = (*client).getPrefix() + "MODE " + (*client).getNick() +  " :+o";
+    std::string msg = ":localhost 381 " + (*client).getUser() + " :You are now an IRC operator";
+    std::string modeMsg = (*client).getPrefix() + "MODE " + (*client).getNick() + " :+o";
 
     if (argv.size() != 3)
-        return ;
+        return;
     if ((*client).getUser() != argv[1])
         msg = ":localhost 491 " + (*client).getUser() + " :No O-lines for your host";
     else if ((*server).opPassword != argv[2])
@@ -199,6 +208,45 @@ void    oper(Server *server, Client *client, std::vector<std::string> argv)
         (*server).forwardMsg(modeMsg);
     }
     (*client).sendMsg(msg);
+}
+
+void invite(Server *server, Client *client, std::vector<std::string> argv)
+{
+    std::string rplmsg = ":localhost 341 " + argv[2] + " " + (*client).getNick() + " :" + argv[1];
+    std::string msg;
+
+    if (argv.size() != 3 || (*client).getNick() == argv[1])
+        return;
+    if ((*server).getClient(argv[1]) == NULL)
+        return;
+    msg = (*client).getPrefix() + "INVITE " + argv[1] + " :" + argv[2];
+    std::cout << rplmsg << std::endl;
+    std::cout << msg << std::endl;
+    (*(*server).getClient(argv[1])).sendMsg(msg);
+    (*client).sendMsg(rplmsg);
+    (*server).channels[argv[2]].forwardMsg(NULL, msg);
+    return ;
+}
+
+void    topic(Server *server, Client *client, std::vector<std::string> argv)
+{
+    std::string msg;
+
+    if (argv.size() != 2 && argv.size() != 3)
+        return ;
+    if (argv.size() == 3)
+    {
+        if (!(*server).channels[argv[1]].isOperator(client))
+        {
+            msg = ":localhost 482 " + argv[1] + " :You're not channel operator";
+            (*client).sendMsg(msg);
+            return ;
+        }
+        (*server).channels[argv[1]].setTopic(argv[2]);
+    }
+    msg = rplTopic((*server).channels[argv[1]], (*client).getNick());
+    (*server).channels[argv[1]].forwardMsg(NULL, msg);
+    return ;
 }
 
 int main(void)
@@ -215,6 +263,8 @@ int main(void)
     server.route("USER", user);
     server.route("PING", ping);
     server.route("OPER", oper);
+    server.route("INVITE", invite);
+    server.route("TOPIC", topic);
 
     signal(SIGINT, signal_handler);
     server.start();

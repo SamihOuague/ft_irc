@@ -30,6 +30,8 @@ class	Client
 		bool	isOperator;
 
 	public:
+		std::string	buffer;
+	
 		Client();
 		Client(Client const &);
 		Client &	operator=(Client const &);

@@ -15,7 +15,7 @@
 #include <vector>
 #include <unistd.h>
 
-Client::Client(void): fd(-1), user("~"), isNew(true), isOperator(false)
+Client::Client(void): fd(-1), user("~"), isNew(true), isOperator(false), buffer("")
 {
 	//std::cout << "Client: Default constructor called." << std::endl;
 	return;
@@ -122,7 +122,7 @@ void	Client::sendMsg(std::string msg)
 	if (msg.size() <= 0)
 		return ;
 	msg += "\r\n";
-	send((*this).getFd(), msg.c_str(), msg.size(), 0);
+	send((*this).getFd(), msg.c_str(), msg.size(), MSG_DONTWAIT);
 	return ;
 }
 
