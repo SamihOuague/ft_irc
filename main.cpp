@@ -243,9 +243,12 @@ void    topic(Server *server, Client *client, std::vector<std::string> argv)
             return ;
         }
         (*server).channels[argv[1]].setTopic(argv[2]);
+        msg = rplTopic((*server).channels[argv[1]], (*client).getNick());
+        (*server).channels[argv[1]].forwardMsg(NULL, msg);
+        return ;
     }
     msg = rplTopic((*server).channels[argv[1]], (*client).getNick());
-    (*server).channels[argv[1]].forwardMsg(NULL, msg);
+    (*client).sendMsg(msg);
     return ;
 }
 
