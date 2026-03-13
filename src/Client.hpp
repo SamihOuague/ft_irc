@@ -27,7 +27,6 @@ class	Client
 		std::string	user;
 		std::string	password;
 		std::vector<std::string> limitedChan;
-		bool	isRegistered;
 		bool	isNew;
 		bool	isOperator;
 

@@ -13,6 +13,7 @@
 #include "src/Server.hpp"
 #include <signal.h>
 #include <iostream>
+#include <stdlib.h>
 
 void signal_handler(int signum)
 {
@@ -36,8 +37,6 @@ void welcome(Client *client)
     (*client).sendMsg(msg);
     
 }
-
-
 
 void nick(Server *server, Client *client, std::vector<std::string> argv)
 {
@@ -86,11 +85,8 @@ void pass(Server *server, Client *client, std::vector<std::string> argv)
         return;
     if (argv[1] != (*server).password)
     {
-        std::cout << (*client).getNick() << std::endl;
         msg = ":localhost 464 * :Incorrect Password";
         (*client).sendMsg(msg);
-        (*client).disconnect((*server).epollfd);
-        (*server).removeClient(client);
         return;
     }
     (*client).setPassword(argv[1]);
@@ -329,9 +325,19 @@ void    mode(Server *server, Client *client, std::vector<std::string> argv)
     (*server).channels[argv[1]].forwardMsg(NULL, msg);
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
-    Server server(6868, "pass");
+    if (argc != 3)
+    {
+        std::cout << "Usage: ./ircserv <port> <password>" << std::endl;
+        return (1);
+    }
+    if (atoi(argv[1]) <= 0)
+    {
+        std::cout << "Invalid parameter: port should be a non 0 numeric value" << std::endl;
+        return(1);
+    }
+    Server server(atoi(argv[1]), std::string(argv[2]));
 
     server.route("NICK", nick);
     server.route("PASS", pass);

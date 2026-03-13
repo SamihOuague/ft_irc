@@ -65,7 +65,7 @@ bool	Channel::isLimited(std::string nick) const
 		return false;
 	for (int i = 0; i < (int)(*this).limitedUsers.size(); i++)
 	{
-		if ((*this).ops[i] == user)
+		if ((*this).limitedUsers[i] == user)
 			return (true);
 	}
 	return (false);
