@@ -26,16 +26,21 @@ void welcome(Client *client)
     std::string msg;
     std::string nick;
 
-    if ((*client).getNick().empty()
-            ||(*client).getUser().empty()
-            || (*client).getPassword().empty()
-            || !(*client).getIsNew())
-        return ;
+    if ((*client).getNick().empty() || (*client).getUser().empty() || (*client).getPassword().empty() || !(*client).getIsNew())
+        return;
     nick = (*client).getNick();
     msg = ":localhost 001 " + nick + " :Welcome to the server " + nick + ".";
     (*client).setIsNew(false);
     (*client).sendMsg(msg);
-    
+}
+
+bool checkParams(std::vector<std::string> argv, int argc, Client *client)
+{
+    std::string msg = ":localhost 461 " + (*client).getNick() + " " + argv[0] + " :Not enough parameters";
+
+    if ((int)argv.size() < argc)
+        (*client).sendMsg(msg);
+    return ((int)argv.size() >= argc);
 }
 
 void nick(Server *server, Client *client, std::vector<std::string> argv)
@@ -44,9 +49,8 @@ void nick(Server *server, Client *client, std::vector<std::string> argv)
     std::string msg;
     std::map<std::string, Channel>::iterator itc = (*server).channels.begin();
 
-    if (argv.size() != 2)
+    if (!checkParams(argv, 2, client))
         return;
-
     nick = argv[1];
     if ((*server).getClient(nick) != NULL)
     {
@@ -57,11 +61,11 @@ void nick(Server *server, Client *client, std::vector<std::string> argv)
 
     msg = (*client).getPrefix() + "NICK :" + nick;
     (*client).setNick(nick);
-	for (int i = 0; i < (int)(*server).channels.size(); i++)
-	{
-		(*itc).second.forwardMsg(client, msg);
-		itc++;
-	}
+    for (int i = 0; i < (int)(*server).channels.size(); i++)
+    {
+        (*itc).second.forwardMsg(client, msg);
+        itc++;
+    }
     (*client).sendMsg(msg);
     welcome(client);
 }
@@ -69,10 +73,11 @@ void nick(Server *server, Client *client, std::vector<std::string> argv)
 void user(Server *server, Client *client, std::vector<std::string> argv)
 {
     (void)server;
-    if (argv.size() < 2)
+
+    if (!checkParams(argv, 2, client))
         return;
     (*client).setUser(argv[1]);
-    
+
     welcome(client);
     return;
 }
@@ -81,8 +86,11 @@ void pass(Server *server, Client *client, std::vector<std::string> argv)
 {
     std::string msg;
 
-    if (argv.size() < 2)
+    if (!checkParams(argv, 1, client))
         return;
+
+    if ((int)argv.size() == 1)
+        argv.push_back("");
     if (argv[1] != (*server).password)
     {
         msg = ":localhost 464 * :Incorrect Password";
@@ -97,33 +105,44 @@ void pass(Server *server, Client *client, std::vector<std::string> argv)
 std::string rplTopic(Channel channel, std::string nick)
 {
     std::string rplmsg;
-    
+
     rplmsg = ":localhost 332 " + nick + " " + channel.getName() + " " + channel.getTopic();
     if (channel.getTopic().empty())
-        rplmsg = ":localhost 331 " + channel.getName() + " :No topic";   
+        rplmsg = ":localhost 331 " + channel.getName() + " :No topic";
     return (rplmsg);
 }
 
 void join(Server *server, Client *client, std::vector<std::string> argv)
 {
-    std::string msg;
-    std::string nick;
+    std::string msg = "";
+    std::string util;
+    std::string tmp;
+    std::string chan;
 
-    if (argv.size() != 2 || argv[1] == ":")
+    if (!checkParams(argv, 2, client))
         return;
-    if (argv[1][0] != '#')
-        argv[1] = "#" + argv[1];
-    if ((*server).channels.count(argv[1]) == 0)
-        (*server).channels[argv[1]].setName(argv[1]);
-    (*server).channels[argv[1]].addClient(client);
-    msg = (*client).getPrefix() + "JOIN :" + argv[1] + "\n";
-    (*server).channels[argv[1]].forwardMsg(client, msg);
-    nick = "";
-    for (int i = 0; i < (int)(*server).channels[argv[1]].getClients().size(); i++)
-        nick += " " + (*(*server).channels[argv[1]].getClients()[i]).getNick();
-    msg += ":localhost 353 " + (*client).getNick() + " = " + argv[1] + " :" + nick + "\n";
-    msg += ":localhost 366 " + (*client).getNick() + " " + argv[1] + " :End of /NAMES list\n";
-    msg += rplTopic((*server).channels[argv[1]], (*client).getNick());
+    tmp = argv[1];
+    for (;;)
+    {
+        chan = tmp.substr(0, tmp.find(','));
+        if (chan[0] != '#')
+            chan = '#' + chan;
+        msg += (*client).getPrefix() + "JOIN :" + chan + "\n";
+        if ((*server).channels.count(chan) == 0)
+            (*server).channels[chan].setName(chan);
+        (*server).channels[chan].addClient(client);
+        util = (*client).getPrefix() + "JOIN :" + chan;
+        (*server).channels[argv[1]].forwardMsg(client, util);
+        util = "";
+        for (int i = 0; i < (int)(*server).channels[chan].getClients().size(); i++)
+            util += " " + (*(*server).channels[chan].getClients()[i]).getNick();
+        msg += ":localhost 353 " + (*client).getNick() + " = " + chan + " :" + util + "\n";
+        msg += ":localhost 366 " + (*client).getNick() + " " + chan + " :End of /NAMES list\n";
+        msg += rplTopic((*server).channels[chan], (*client).getNick()) + "\n";
+        if (tmp.find(',') == std::string::npos)
+            break;
+        tmp = tmp.substr(tmp.find(',') + 1);
+    }
     (*client).sendMsg(msg);
     return;
 }
@@ -132,7 +151,7 @@ void privmsg(Server *server, Client *client, std::vector<std::string> argv)
 {
     std::string msg;
 
-    if (argv.size() != 3)
+    if (!checkParams(argv, 3, client))
         return;
     msg = (*client).getPrefix() + "PRIVMSG " + argv[1] + " " + argv[2];
     if (argv[1][0] == '#')
@@ -149,11 +168,8 @@ void kick(Server *server, Client *client, std::vector<std::string> argv)
 {
     std::string msg;
 
-    for (int i = 0; i < (int)argv.size(); i++)
-        std::cout << argv[i] << " ";
-    std::cout << std::endl;
-    if (argv.size() != 4 && argv.size() != 3)
-        return ;
+    if (!checkParams(argv, 3, client))
+        return;
     if (!(*server).channels[argv[1]].isOperator(client))
     {
         msg = ":localhost 482 " + argv[1] + " :You're not channel operator";
@@ -161,7 +177,7 @@ void kick(Server *server, Client *client, std::vector<std::string> argv)
         return;
     }
     msg = (*client).getPrefix() + "KICK " + argv[1] + " " + argv[2];
-    if (argv.size() == 4)
+    if (argv.size() == 4 && argv[3][0] == ':')
         msg += argv[3];
     msg += "\n" + (*(*server).getClient(argv[2])).getPrefix() + "PART " + argv[1];
     for (int i = 0; i < (int)(*server).channels[argv[1]].getClients().size(); i++)
@@ -179,29 +195,45 @@ void kick(Server *server, Client *client, std::vector<std::string> argv)
 void quit(Server *server, Client *client, std::vector<std::string> argv)
 {
     (void)argv;
-    (*client).disconnect((*server).epollfd);
     (*server).removeClient(client);
+    (*client).disconnect((*server).epollfd);
     return;
 }
 
 void part(Server *server, Client *client, std::vector<std::string> argv)
 {
     std::string msg;
+    std::string chan;
+    std::string util;
+    std::string tmp;
 
-    if (argv.size() < 2)
+    if (!checkParams(argv, 2, client))
         return;
-    msg = (*client).getPrefix() + "PART " + argv[1];
-    if (argv.size() > 2)
-        msg += " " + argv[2];
-    (*server).channels[argv[1]].forwardMsg(NULL, msg);
-    (*server).channels[argv[1]].removeClient(client);
-    return;
+    tmp = argv[1];
+    std::cout << tmp << std::endl; 
+    for (;;)
+    {
+        chan = tmp.substr(0, tmp.find(','));
+        if (chan[0] != '#')
+            chan = '#' + chan;
+        msg = (*client).getPrefix() + "PART " + chan;    
+        if ((*server).channels.count(chan) != 0)
+        {
+            if (argv.size() > 2)
+                msg += " " + argv[2];
+            (*server).channels[chan].forwardMsg(NULL, msg);
+            (*server).channels[chan].removeClient(client);
+        }
+        if (tmp.find(',') == std::string::npos)
+            break;
+        tmp = tmp.substr(tmp.find(',') + 1);
+    }
 }
 
 void ping(Server *server, Client *client, std::vector<std::string> argv)
 {
     (void)server;
-    if (argv.size() != 2)
+    if (!checkParams(argv, 2, client))
         return;
     (*client).sendMsg("PONG :" + argv[1]);
 }
@@ -211,7 +243,7 @@ void oper(Server *server, Client *client, std::vector<std::string> argv)
     std::string msg = ":localhost 381 " + (*client).getUser() + " :You are now an IRC operator";
     std::string modeMsg = (*client).getPrefix() + "MODE " + (*client).getNick() + " :+o";
 
-    if (argv.size() != 3)
+    if (!checkParams(argv, 3, client))
         return;
     if ((*client).getUser() != argv[1])
         msg = ":localhost 491 " + (*client).getUser() + " :No O-lines for your host";
@@ -230,41 +262,37 @@ void invite(Server *server, Client *client, std::vector<std::string> argv)
     std::string rplmsg = ":localhost 341 " + argv[2] + " " + (*client).getNick() + " :" + argv[1];
     std::string msg;
 
-    if (argv.size() != 3 || (*client).getNick() == argv[1])
-        return;
-    if ((*server).getClient(argv[1]) == NULL)
+    if (!checkParams(argv, 3, client))
         return;
     msg = (*client).getPrefix() + "INVITE " + argv[1] + " :" + argv[2];
-    std::cout << rplmsg << std::endl;
-    std::cout << msg << std::endl;
     (*(*server).getClient(argv[1])).sendMsg(msg);
     (*client).sendMsg(rplmsg);
     (*server).channels[argv[2]].forwardMsg(NULL, msg);
-    return ;
+    return;
 }
 
-void    topic(Server *server, Client *client, std::vector<std::string> argv)
+void topic(Server *server, Client *client, std::vector<std::string> argv)
 {
     std::string msg;
 
-    if (argv.size() != 2 && argv.size() != 3)
-        return ;
+    if (!checkParams(argv, 2, client))
+        return;
     if (argv.size() == 3)
     {
         if (!(*server).channels[argv[1]].isOperator(client))
         {
             msg = ":localhost 482 " + argv[1] + " :You're not channel operator";
             (*client).sendMsg(msg);
-            return ;
+            return;
         }
         (*server).channels[argv[1]].setTopic(argv[2]);
         msg = rplTopic((*server).channels[argv[1]], (*client).getNick());
         (*server).channels[argv[1]].forwardMsg(NULL, msg);
-        return ;
+        return;
     }
     msg = rplTopic((*server).channels[argv[1]], (*client).getNick());
     (*client).sendMsg(msg);
-    return ;
+    return;
 }
 
 /*
@@ -276,13 +304,15 @@ operators
 · l: Set/remove the user limit to channel
 */
 
-void    mode(Server *server, Client *client, std::vector<std::string> argv)
+void mode(Server *server, Client *client, std::vector<std::string> argv)
 {
     std::string flags;
     std::string msg;
 
-    if (argv.size() < 3 || argv[1][0] != '#')
-        return ;
+    if (argv.size() == 2)
+        return;
+    if (!checkParams(argv, 3, client) || (*server).channels.count(argv[1]) == 0)
+        return;
     if (!(*server).channels[argv[1]].isOperator(client))
     {
         msg = ":localhost 482 " + argv[1] + " :You're not channel operator";
@@ -291,7 +321,7 @@ void    mode(Server *server, Client *client, std::vector<std::string> argv)
     }
     flags = argv[2];
     if (flags[0] != '+' && flags[0] != '-')
-        return ;
+        return;
     msg = (*client).getPrefix() + "MODE " + argv[1] + " " + flags[0];
     for (int i = 1; i < (int)flags.size(); i++)
     {
@@ -303,16 +333,15 @@ void    mode(Server *server, Client *client, std::vector<std::string> argv)
             (*server).channels[argv[1]].setPass((flags[0] == '+') ? argv[3] : "");
         else if (flags[i] == 'o' && argv.size() == 4)
         {
-            if ((*server).getClient(argv[3]) == NULL
-                    || (*server).channels[argv[1]].getClient(argv[3]) == NULL)
-                continue ;
+            if ((*server).getClient(argv[3]) == NULL || (*server).channels[argv[1]].getClient(argv[3]) == NULL)
+                continue;
             if (flags[0] == '+')
                 (*server).channels[argv[1]].addOperator((*server).getClient(argv[3]));
         }
         else if (flags[i] == 'l')
         {
             if ((*server).channels[argv[1]].getClient(argv[3]) == NULL)
-                return ;
+                return;
             if (flags[0] == '+')
                 (*server).channels[argv[1]].addUserLimit((*server).getClient(argv[3]));
             else
@@ -335,7 +364,7 @@ int main(int argc, char **argv)
     if (atoi(argv[1]) <= 0)
     {
         std::cout << "Invalid parameter: port should be a non 0 numeric value" << std::endl;
-        return(1);
+        return (1);
     }
     Server server(atoi(argv[1]), std::string(argv[2]));
 
@@ -352,6 +381,7 @@ int main(int argc, char **argv)
     server.route("INVITE", invite);
     server.route("TOPIC", topic);
     server.route("MODE", mode);
+
     signal(SIGINT, signal_handler);
     server.start();
     return (0);

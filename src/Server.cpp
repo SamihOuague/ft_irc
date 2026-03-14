@@ -220,18 +220,28 @@ std::vector<std::string> extract_cmd(std::string req)
 {
 	std::vector<std::string> argv;
 	std::string cursor(req);
+	std::string	tmp;
 	long unsigned int bnpos = -1;
 
-	if (req[0] == ':')
-	{
-		cursor = req.substr(1);
-	}
+	bnpos = cursor.find('\r');
+	if (bnpos != std::string::npos)
+		cursor[bnpos] = '\n';
 	for (long unsigned int spos = cursor.find(' ');; spos = cursor.find(' '))
 	{
-		bnpos = cursor.find('\r');
-		argv.push_back(cursor.substr(0, (cursor.find(' ') == std::string::npos || cursor[0] == ':') ? bnpos : spos));
+		while (cursor[0] == ' ')
+		{
+			cursor = cursor.substr(1);
+			if (cursor[0] == '\n')
+				return (argv);
+		}
+		bnpos = cursor.find('\n');
+		spos = cursor.find(' ');
+		bnpos = (cursor.find(' ') == std::string::npos || cursor[0] == ':') ? bnpos : spos;
+		tmp = cursor.substr(0, bnpos);
+		if (tmp != "")
+			argv.push_back(tmp);
 		if (cursor.find(' ') == std::string::npos || cursor[0] == ':')
-			break;
+			break ;
 		cursor = cursor.substr(spos + 1);
 	}
 	return argv;
@@ -241,6 +251,14 @@ void Server::execCmd(Client *client, std::vector<std::string> argv)
 {
 	std::string	msg = ":localhost 451 * :You have not registered";
 
+	if (argv.size() < 1 || argv[0].empty())
+		return ;
+	if ((*this).routes.count(argv[0]) == 0) 
+	{
+		msg = ":localhost 421 " + argv[0] + " :Unknown command";
+		(*client).sendMsg(msg);
+		return ;
+	}
 	if ((*client).getIsNew()
 		&& argv[0] != "USER"
 		&& argv[0] != "NICK"
@@ -249,16 +267,7 @@ void Server::execCmd(Client *client, std::vector<std::string> argv)
 		(*client).sendMsg(msg);
 		return ;
 	}
-	if (argv.size() < 1)
-		return;
-	if ((*this).routes.count(argv[0]))
-		(*this).routes[argv[0]](this, client, argv);
-	else
-	{
-		for (int i = 0; i < (int)argv.size(); i++)
-			std::cout << argv[i] << " ";
-		std::cout << std::endl;
-	}
+	(*this).routes[argv[0]](this, client, argv);
 }
 
 void Server::execReq(Client *client)
