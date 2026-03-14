@@ -26,7 +26,10 @@ void welcome(Client *client)
     std::string msg;
     std::string nick;
 
-    if ((*client).getNick().empty() || (*client).getUser().empty() || (*client).getPassword().empty() || !(*client).getIsNew())
+    if ((*client).getNick().empty()
+        || (*client).getUser().empty()
+        || (*client).getPassword().empty()
+        || !(*client).getIsNew())
         return;
     nick = (*client).getNick();
     msg = ":localhost 001 " + nick + " :Welcome to the server " + nick + ".";
@@ -121,6 +124,13 @@ void join(Server *server, Client *client, std::vector<std::string> argv)
 
     if (!checkParams(argv, 2, client))
         return;
+    msg = ":localhost 473 " + argv[1] + " :Cannot join channel (+i)";
+    if ((*server).channels.count(chan) != 0
+            && !(*server).channels[chan].isInvited((*client).getNick()))
+    {
+        (*client).sendMsg(msg);
+        return ;
+    }
     tmp = argv[1];
     for (;;)
     {
@@ -178,12 +188,13 @@ void kick(Server *server, Client *client, std::vector<std::string> argv)
     }
     msg = (*client).getPrefix() + "KICK " + argv[1] + " " + argv[2];
     if (argv.size() == 4 && argv[3][0] == ':')
-        msg += argv[3];
+        msg += " " + argv[3];
     msg += "\n" + (*(*server).getClient(argv[2])).getPrefix() + "PART " + argv[1];
     for (int i = 0; i < (int)(*server).channels[argv[1]].getClients().size(); i++)
     {
         if ((*(*server).channels[argv[1]].getClients()[i]).getNick() == argv[2])
         {
+            (*server).channels[argv[1]].removeInvite((*(*server).channels[argv[1]].getClients()[i]).getNick());
             (*server).channels[argv[1]].forwardMsg(NULL, msg);
             (*server).channels[argv[1]].removeClient((*server).channels[argv[1]].getClients()[i]);
             break;
@@ -264,7 +275,16 @@ void invite(Server *server, Client *client, std::vector<std::string> argv)
 
     if (!checkParams(argv, 3, client))
         return;
+    if (argv[2][0] != '#')
+        argv[2] = '#' + argv[2];
+    if (!(*server).channels[argv[2]].isOperator(client))
+    {
+        msg = ":localhost 482 " + argv[2] + " :You're not channel operator";
+        (*client).sendMsg(msg);
+        return;
+    }
     msg = (*client).getPrefix() + "INVITE " + argv[1] + " :" + argv[2];
+    (*server).channels[argv[2]].addInvite((*client).getNick());
     (*(*server).getClient(argv[1])).sendMsg(msg);
     (*client).sendMsg(rplmsg);
     (*server).channels[argv[2]].forwardMsg(NULL, msg);
@@ -294,15 +314,6 @@ void topic(Server *server, Client *client, std::vector<std::string> argv)
     (*client).sendMsg(msg);
     return;
 }
-
-/*
-· i: Set/remove Invite-only channel
-· t: Set/remove the restrictions of the TOPIC command to channel
-operators
-· k: Set/remove the channel key (password)
-· o: Give/take channel operator privilege
-· l: Set/remove the user limit to channel
-*/
 
 void mode(Server *server, Client *client, std::vector<std::string> argv)
 {

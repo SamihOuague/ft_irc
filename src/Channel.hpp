@@ -27,6 +27,7 @@ class	Channel
 		std::string	pass;
 		bool	inviteOnly;
 		bool	topicRestricted;
+		std::vector<std::string>	invited;
 
 	public:
 		Channel();
@@ -55,6 +56,9 @@ class	Channel
 		void	setTopicRestricted(bool);
 		bool	isInviteOnly() const;
 		bool	isTopicRestricted() const;
+		bool	isInvited(std::string) const;
+		void	addInvite(std::string);
+		void	removeInvite(std::string nick);
 		~Channel();
 };
 #endif

@@ -58,6 +58,39 @@ void	Channel::addOperator(Client *client)
 	(*this).ops.push_back(client);
 }
 
+bool	Channel::isInvited(std::string nick) const
+{
+	for (int i = 0; i < (int)(*this).invited.size(); i++)
+	{
+		if ((*this).invited[i] == nick)
+			return (true);
+	}
+	return (false);
+}
+
+void	Channel::addInvite(std::string nick)
+{
+	if (!(*this).isInvited(nick))
+		(*this).invited.push_back(nick);
+}
+
+void	Channel::removeInvite(std::string nick)
+{
+	std::vector<std::string>::iterator it = (*this).invited.begin();
+	
+	for (int i = 0; i < (int)(*this).invited.size(); i++)
+	{
+		if (*it == nick)
+		{ 
+			(*this).invited.erase(it, it+1);
+			break ;
+		}
+		it++;
+	}
+}
+
+
+
 bool	Channel::isLimited(std::string nick) const
 {
 	Client *user = (*this).getClient(nick);

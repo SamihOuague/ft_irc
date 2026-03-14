@@ -31,7 +31,6 @@ class	Server: public Routes
 		int	sockfd;
 		std::string	password;
 		std::string	opPassword;
-		std::vector<std::string>	invited;
 		std::map<int, Client> clients;
 		std::map<std::string, Channel> channels;
 
