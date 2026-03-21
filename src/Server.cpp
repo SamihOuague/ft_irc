@@ -1,15 +1,3 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   Server.cpp                                      :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: souaguen <souaguen@student.42.fr>          +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/12/12 13:54:36 by souaguen          #+#    #+#             */
-/*   Updated: 2025/12/14 09:22:43 by souaguen         ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
-
 #include "Server.hpp"
 #include <iostream>
 #include <sys/epoll.h>
@@ -27,19 +15,14 @@ Server::Server(): Server(6667, "password")
 Server::Server(unsigned short port, std::string password): password(password), opPassword("password")
 {
 	int opt = 1;
-	std::cout << "Server: Default constructor called." << std::endl;
 
 	(*this).sockfd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 	if ((*this).sockfd == -1)
-	{
-		std::cerr << "error socket" << std::endl;
-		return;
-	}
+		throw "Error: opening socket";
 	setsockopt((*this).sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 	(*this).addr.sin_addr.s_addr = INADDR_ANY;
 	(*this).addr.sin_family = AF_INET;
 	(*this).addr.sin_port = htons(port);
-	return;
 }
 
 Server::Server(Server const &instance): Routes()
@@ -80,7 +63,7 @@ void	Server::removeClient(Client *client)
 
 	for (int i = 0; i < (int)(*this).channels.size(); i++)
 	{
-		msg = (*client).getPrefix() + "QUIT :Client disconnected";
+		msg = (*client).getPrefix() + "PART : " + (*client).getNick() + " disconnected.";
 		(*itc).second.removeClient(client);
 		(*itc).second.forwardMsg(NULL, msg);
 		itc++;
@@ -106,6 +89,7 @@ Server &Server::operator=(Server const &instance)
 	(*this).channels = instance.channels;
 	(*this).clients = instance.clients;
 	(*this).password = instance.password;
+	(*this).opPassword = instance.opPassword;
 	return (*this);
 }
 
@@ -118,16 +102,10 @@ Server::~Server(void)
 int Server::init()
 {
 	if (bind((*this).sockfd, (struct sockaddr *)&(*this).addr, sizeof((*this).addr)) == -1)
-	{
-		std::cerr << "Error binding" << std::endl;
-		return -1;
-	}
+		throw std::string("Error binding");
 	std::cout << "Bind success" << std::endl;
 	if (listen((*this).sockfd, 10) == -1)
-	{
-		std::cerr << "Error listen" << std::endl;
-		return -1;
-	}
+		throw  std::string("Error listen");
 	std::cout << "Server listening on port " << ntohs((*this).addr.sin_port) << std::endl;
 	return (0);
 }
@@ -138,16 +116,13 @@ int Server::initPoll()
 
 	(*this).epollfd = epoll_create1(0);
 	if ((*this).epollfd == -1)
-	{
-		std::cerr << "Error creating epoll" << std::endl;
-		return -1;
-	}
+		throw std::string("Error creating epoll");
 	ev.events = EPOLLIN;
 	ev.data.fd = (*this).sockfd;
 	if (epoll_ctl((*this).epollfd, EPOLL_CTL_ADD, (*this).sockfd, &ev) == -1)
 	{
-		std::cerr << "Error epoll_ctl" << std::endl;
-		return -1;
+		close((*this).sockfd);
+		throw std::string("Error epoll_ctl");
 	}
 	return (0);
 }
@@ -158,18 +133,23 @@ int Server::newClient()
 	Client client;
 	int conn_sock;
 
-	conn_sock = client.acceptConnection((*this).sockfd);
+	try
+	{
+		conn_sock = client.acceptConnection((*this).sockfd);
+	}
+	catch(const std::string &e)
+	{
+		throw e;
+	}
 	(*this).clients[conn_sock] = client;
 	ev.events = EPOLLIN | EPOLLET;
 	ev.data.fd = conn_sock;
 	if (epoll_ctl((*this).epollfd, EPOLL_CTL_ADD, conn_sock, &ev) == -1)
-	{
-		std::cerr << "Error epoll_ctl" << std::endl;
-		return -1;
-	}
+		throw std::string("Error epoll_ctl");
 	std::string msg = "CAP * LS :NICK PASS JOIN PRIVMSG KICK QUIT PART\r\n";
 	std::cout << "Client connected" << std::endl;
-	send(conn_sock, msg.c_str(), msg.size(), MSG_DONTWAIT);
+	if (send(conn_sock, msg.c_str(), msg.size(), MSG_DONTWAIT) == -1)
+		throw std::string("Sending to new client failed.");
 	return (0);
 }
 
@@ -178,18 +158,24 @@ void Server::start()
 	struct epoll_event events[10];
 	int nfds;
 
-	if ((*this).init() == -1)
-		return;
-	if ((*this).initPoll() == -1)
-		return;
 	Server::isRunning = true;
+	try
+	{
+		(*this).init();
+		(*this).initPoll();
+	}
+	catch (const std::string &e)
+	{
+		Server::isRunning = false;
+		throw e;
+	}
 	while (Server::isRunning)
 	{
 		nfds = epoll_wait((*this).epollfd, events, 10, -1);
 		if (nfds == -1)
 		{
 			if (errno == EINTR)
-        		continue;
+        		continue ;
 			std::cerr << "Error epoll_wait" << std::endl;
 			return;
 		}
@@ -197,8 +183,14 @@ void Server::start()
 		{
 			if (events[n].data.fd == (*this).sockfd)
 			{
-				if ((*this).newClient() == -1)
-					return ;
+				try
+				{
+					(*this).newClient();
+				}
+				catch(const std::string &e)
+				{
+					std::cerr << e << std::endl;
+				}
 			}
 			else
 				(*this).execReq(&(*this).clients[events[n].data.fd]);
@@ -247,17 +239,18 @@ std::vector<std::string> extract_cmd(std::string req)
 	return argv;
 }
 
-void Server::execCmd(Client *client, std::vector<std::string> argv)
+bool Server::execCmd(Client *client, std::vector<std::string> argv)
 {
 	std::string	msg = ":localhost 451 * :You have not registered";
 
-	if (argv.size() < 1 || argv[0].empty())
-		return ;
+	if (argv.size() < 1 || argv[0].empty() || argv[0] == "CAP")
+		return (false);
+	std::cout << argv[0] << " " << argv[1] << std::endl;
 	if ((*this).routes.count(argv[0]) == 0) 
 	{
 		msg = ":localhost 421 " + argv[0] + " :Unknown command";
 		(*client).sendMsg(msg);
-		return ;
+		return (false);
 	}
 	if ((*client).getIsNew()
 		&& argv[0] != "USER"
@@ -265,9 +258,12 @@ void Server::execCmd(Client *client, std::vector<std::string> argv)
 		&& argv[0] != "PASS")
 	{
 		(*client).sendMsg(msg);
-		return ;
+		return (false);
 	}
 	(*this).routes[argv[0]](this, client, argv);
+	if (argv[0] == "QUIT")
+		return (true);
+	return (false);
 }
 
 void Server::execReq(Client *client)
@@ -284,7 +280,8 @@ void Server::execReq(Client *client)
 		cmd = (*client).buffer.substr(0, bnpos);
 		(*client).buffer = (*client).buffer.substr(bnpos + 1);
 		argv = extract_cmd(cmd);
-		(*this).execCmd(client, argv);
+		if ((*this).execCmd(client, argv))
+			break ;
 	}
 }
 

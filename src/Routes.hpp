@@ -28,7 +28,7 @@ class	Routes
 		Routes();
 		Routes(Routes const &);
 		Routes &	operator=(Routes const &);
-		void	route(std::string, void (*)(Server *, Client *, std::vector<std::string>));
+		void	route(std::string, void (*f)(Server *, Client *, std::vector<std::string>));
 		~Routes();
 };
 #endif

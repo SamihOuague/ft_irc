@@ -26,7 +26,6 @@ class	Client
 		std::string	nick;
 		std::string	user;
 		std::string	password;
-		std::vector<std::string> limitedChan;
 		bool	isNew;
 		bool	isOperator;
 
@@ -36,24 +35,21 @@ class	Client
 		Client();
 		Client(Client const &);
 		Client &	operator=(Client const &);
-		int		acceptConnection(int const &);
-		int		getFd(void) const;
+		~Client();
 		std::string	getNick(void) const;
-		void	setNick(std::string const &);
 		std::string	getUser(void) const;
-		void	setUser(std::string const &);
 		std::string	getPassword(void) const;
 		std::string	getPrefix(void) const;
-		void	setPassword(std::string const &);
+		int		getFd(void) const;
+		int		acceptConnection(int const &);
 		bool	getIsNew(void) const;
-		void	setIsNew(bool);
-		void	sendMsg(std::string);
-		void	setIsOperator(bool);
 		bool	getIsOperator(void) const;
-		void	addLimitedChannel(std::string);
-		void	removeLimitedChannel(std::string);
-		bool	isLimited(std::string) const;
+		void	setNick(std::string const &);
+		void	setUser(std::string const &);
+		void	setPassword(std::string const &);
+		void	setIsNew(bool);
+		void	setIsOperator(bool);
+		void	sendMsg(std::string);
 		void	disconnect(int &);
-		~Client();
 };
 #endif

@@ -41,7 +41,7 @@ class	Server: public Routes
 		~Server();
 		void	start();
 		int	readCmd(Client *);
-		void	execCmd(Client *, std::vector<std::string>);
+		bool	execCmd(Client *, std::vector<std::string>);
 		void	execReq(Client *);
 		int		init();
 		int		initPoll();

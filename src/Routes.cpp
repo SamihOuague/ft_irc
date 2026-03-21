@@ -31,10 +31,11 @@ Routes&	Routes::operator=(Routes const &instance)
 	//std::cout << "Routes: Assignation overload called." << std::endl;
 	if (this == &instance)
 		return (*this);
+	(*this).routes = instance.routes;
 	return (*this);
 }
 
-void	Routes::route(std::string path, void (*f)(Server *, Client *, std::vector<std::string>))
+void Routes::route(std::string path, void (*f)(Server *, Client *, std::vector<std::string>))
 {
 	(*this).routes[path] = f;
 	return ;

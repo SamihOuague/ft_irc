@@ -14,16 +14,16 @@
 #include <iostream>
 #include <vector>
 
-Channel::Channel(void): topic("")
+Channel::Channel(void): name(""), topic(""), pass(""), inviteOnly(false), topicRestricted(false), limit(-1)
 {
 	//std::cout << "Channel: Default constructor called." << std::endl;
 	return;
 }
 
-Channel::Channel(Channel const &instance)
+Channel::Channel(Channel const &src)
 {
 	//std::cout << "Channel: Copy constructor called." << std::endl;
-	*this = instance;
+	*this = src;
 	return;
 }
 
@@ -35,7 +35,12 @@ Channel &Channel::operator=(Channel const &instance)
 	clients = instance.clients;
 	ops = instance.ops;
     name = instance.name;
+	pass = instance.pass;
+	inviteOnly = instance.inviteOnly;
+	topicRestricted = instance.topicRestricted;
+	invited = instance.invited;
 	topic = instance.topic;
+	limit = instance.limit;
 	return (*this);
 }
 
@@ -89,19 +94,25 @@ void	Channel::removeInvite(std::string nick)
 	}
 }
 
-
-
-bool	Channel::isLimited(std::string nick) const
+void	Channel::setLimit(int limit)
 {
-	Client *user = (*this).getClient(nick);
-	if (user == NULL)
-		return false;
-	for (int i = 0; i < (int)(*this).limitedUsers.size(); i++)
-	{
-		if ((*this).limitedUsers[i] == user)
-			return (true);
-	}
-	return (false);
+	(*this).limit = limit;
+}
+
+std::string	Channel::getModes() const
+{
+	std::string	modes;
+
+	modes = "";
+	if (inviteOnly)
+		modes += "i";
+	if (topicRestricted)
+		modes += "t";
+	if (pass != "")
+		modes += "k";
+	if (limit != -1)
+		modes += "l";
+	return modes ;
 }
 
 void Channel::addClient(Client *client)
@@ -116,27 +127,6 @@ void	Channel::removeOp(Client *client)
 	std::vector<Client *>::iterator it = (*this).ops.begin();
 	
 	for (int i = 0; i < (int)(*this).ops.size(); i++)
-	{
-		if (*it == client)
-		{ 
-			(*this).ops.erase(it, it+1);
-			break ;
-		}
-		it++;
-	}
-}
-
-void	Channel::addUserLimit(Client *client)
-{
-	if (!(*this).isLimited((*client).getNick()))
-		(*this).limitedUsers.push_back(client);
-}
-
-void	Channel::removeUserLimit(Client *client)
-{
-	std::vector<Client *>::iterator it = (*this).limitedUsers.begin();
-	
-	for (int i = 0; i < (int)(*this).limitedUsers.size(); i++)
 	{
 		if (*it == client)
 		{ 
@@ -171,7 +161,9 @@ void	Channel::removeClient(Client *client)
 		it++;
 	}
 	if ((*this).ops.size() == 0 && (*this).clients.size() != 0)
-		(*this).addOp(clients[0], client);
+		(*this).addOp((*this).clients[0], client);
+	else if ((*this).ops.size() == 0)
+		(*this).setInviteOnly(false);
 }
 
 std::string	Channel::getName()
@@ -246,9 +238,9 @@ bool	Channel::isInviteOnly() const
 	return (*this).inviteOnly;
 }
 
-void	Channel::limitUser(Client *client)
+int		Channel::getLimit(void) const
 {
-	(*this).limitedUsers.push_back(client);
+	return (*this).limit;
 }
 
 void	Channel::setTopicRestricted(bool topicRestricted)

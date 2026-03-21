@@ -15,15 +15,13 @@
 #include <vector>
 #include <unistd.h>
 
-Client::Client(void): fd(-1), user("~"), isNew(true), isOperator(false), buffer("")
+Client::Client(void): fd(-1), nick("*"), user("~"), isNew(true), isOperator(false), buffer("")
 {
-	//std::cout << "Client: Default constructor called." << std::endl;
 	return;
 }
 
 Client::Client(Client const &instance)
 {
-	//std::cout << "Client: Copy constructor called." << std::endl;
 	*this = instance;
 	return;
 }
@@ -46,13 +44,15 @@ void	Client::setIsNew(bool value)
 
 Client &Client::operator=(Client const &instance)
 {
-	//std::cout << "Client: Assignation overload called." << std::endl;
 	if (this == &instance)
 		return (*this);
 	(*this).fd = instance.fd;
 	(*this).addr = instance.addr;
 	(*this).nick = instance.nick;
 	(*this).isNew = instance.isNew;
+	(*this).password = instance.password;
+	(*this).user = instance.user;
+	(*this).isOperator = instance.isOperator;
 	return (*this);
 }
 
@@ -62,10 +62,7 @@ int Client::acceptConnection(int const &sockfd)
 
 	(*this).fd = accept(sockfd, (struct sockaddr *)&(*this).addr, &socklen);
 	if ((*this).fd == -1)
-	{
-		std::cerr << "Error accept" << std::endl;
-		return -1;
-	}
+		throw "Error accept";
 	return (*this).fd;
 }
 
@@ -135,39 +132,7 @@ void	Client::disconnect(int & epollfd)
 	return ;
 }
 
-void	Client::addLimitedChannel(std::string channel)
-{
-	if (!(*this).isLimited(channel))
-		(*this).limitedChan.push_back(channel);
-}
-
-void	Client::removeLimitedChannel(std::string channel)
-{
-	std::vector<std::string>::iterator it = (*this).limitedChan.begin();
-	
-	for (int i = 0; i < (int)(*this).limitedChan.size(); i++)
-	{
-		if (*it == channel)
-		{ 
-			(*this).limitedChan.erase(it, it+1);
-			break ;
-		}
-		it++;
-	}
-}
-
-bool	Client::isLimited(std::string channel) const
-{
-	for (int i = 0; i < (int)(*this).limitedChan.size(); i++)
-	{
-		if ((*this).limitedChan[i] == channel)
-			return (true);
-	}
-	return (false);
-}
-
 Client::~Client(void)
 {
-	//std::cout << "Client: Destructor called." << std::endl;
 	return;
 }
